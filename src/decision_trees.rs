@@ -6,6 +6,7 @@ use crate::utils::{Dataset, Task, TaskLabelType};
 enum InfoGains {
     Gini,
     Entropy,
+    Variation,
 }
 
 struct Node<T> {
@@ -25,17 +26,68 @@ struct DecisionTree<T> {
     task: Task
 }
 
-// trait TaskConditionedReturn {
-//     type output;
-//     fn get_leaf_value(&self, dataset: Dataset) -> Self::output;
-// }
+trait TaskConditionedReturn<T: TaskLabelType> {
+    fn get_leaf_value(&self) -> T;
+
+    fn calculate_info_gain(&self, info_gain_type: &InfoGains) -> f32;
+}
+
+impl TaskConditionedReturn<usize> for Dataset<usize> {
+    fn get_leaf_value(&self) -> usize {
+        let mut rations_by_label: HashMap<usize, f32> = HashMap::new();
+        for idx in 0..self.len() {
+            let (_, label) = self.get(idx);
+            *rations_by_label.entry(*label).or_insert(0.0) += 1.0;
+        }
+        let item = rations_by_label.iter().max_by(|x, y| (*x.1).total_cmp(y.1)).unwrap();
+
+        *item.0
+    }
+
+    fn calculate_info_gain(&self, info_gain_type: &InfoGains) -> f32 {
+        let mut rations_by_label: HashMap<usize, f32> = HashMap::new();
+        for idx in 0..self.len() {
+            let (_, label) = self.get(idx);
+            *rations_by_label.entry(*label).or_insert(0.0) += 1.0;
+        }
+        rations_by_label.iter_mut().for_each(|n| {
+            *n.1 /= self.len() as f32;
+        });
+
+        match info_gain_type {
+            InfoGains::Gini => rations_by_label.values().fold(1.0f32, |gini, x| gini - x * x),
+            InfoGains::Entropy => rations_by_label.values().fold(0.0, |entropy, x| entropy - x * x.log2()),
+            _ => {assert!(false, "you should use gini or entropy!"); 0.0},
+        }
+    }
+}
+
+impl TaskConditionedReturn<f32> for Dataset<f32> {
+    fn get_leaf_value(&self) -> f32 {
+        self.labels.iter().sum::<f32>() / self.len() as f32
+    }
+
+    fn calculate_info_gain(&self, info_gain_type: &InfoGains) -> f32 {
+        match info_gain_type {
+            InfoGains::Variation => {
+                let mean = self.labels.iter().sum::<f32>() / self.len() as f32;
+                let var = self.labels.iter().fold(0.0, |acc, item| acc + (item - mean) * (item - mean)) / self.len() as f32;
+                var
+            },
+            _ => {assert!(false, "you should use variation!"); 0.0},
+        }    
+    }
+}
+
+
 
 impl<T: TaskLabelType + Copy> DecisionTree<T> {
     pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains, task: Task) -> Self {
         DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain, task: task}
     }
 
-    pub fn build_trees(&mut self, dataset: Dataset<T>, current_depth: usize) -> Node<T> {
+    pub fn build_trees(&mut self, dataset: Dataset<T>, current_depth: usize) -> Node<T> where Dataset<T>: TaskConditionedReturn<T>
+    {
         let sample_num = dataset.len();
         // let feature_num = dataset.feature_len();
         if sample_num > self.min_sample_split && current_depth < self.max_depth {
@@ -52,7 +104,9 @@ impl<T: TaskLabelType + Copy> DecisionTree<T> {
         Node {feature_idx: None, info_gain: None, left: None, right: None, threshold: None, value: Some(leaf_value)}
     }
 
-    fn get_best_split(&self, dataset: &Dataset<T>) -> (f32, usize, f32, Option<Dataset<T>>, Option<Dataset<T>>) {
+    fn get_best_split(&self, dataset: &Dataset<T>) -> (f32, usize, f32, Option<Dataset<T>>, Option<Dataset<T>>)
+    where Dataset<T>: TaskConditionedReturn<T>
+    {
         // info_gain, feature_idx, threshold, left_dataset, right_dataset
         let mut best_splits = (f32::MIN, 0, f32::MIN, None, None);
 
@@ -62,8 +116,9 @@ impl<T: TaskLabelType + Copy> DecisionTree<T> {
                 let (left_dataset, right_dataset) = self.split_dataset_by(dataset, &feature_values, *threshold);
 
                 if left_dataset.len() > 0 && right_dataset.len() > 0 {
-
-                    let current_info_gains = self.calculate_info_gains(&dataset) - (left_dataset.len() / dataset.len()) as f32 * self.calculate_info_gains(&left_dataset) - self.calculate_info_gains(&right_dataset) * (right_dataset.len() / dataset.len()) as f32;
+                    let current_info_gains = dataset.calculate_info_gain(&self.info_gain_type) - 
+                    (left_dataset.len() / dataset.len()) as f32 * left_dataset.calculate_info_gain(&self.info_gain_type) - 
+                    (right_dataset.len() / dataset.len()) as f32 * right_dataset.calculate_info_gain(&self.info_gain_type);
 
                     if current_info_gains > best_splits.0 {
                         best_splits = (current_info_gains, fi, *threshold, Some(left_dataset), Some(right_dataset));
@@ -74,8 +129,8 @@ impl<T: TaskLabelType + Copy> DecisionTree<T> {
         best_splits
     }
 
-    fn calculate_info_gains(&self, dataset: &Dataset<T>) -> f32 {
-        todo!()
+    fn get_leaf_value<E: TaskConditionedReturn<T>>(&self, dataset: &E) -> T {
+        dataset.get_leaf_value()
     }
 
     fn split_dataset_by(&self, dataset: &Dataset<T>, feature_values: &Vec<&f32>, threshold: f32) -> (Dataset<T>, Dataset<T>) {
@@ -90,21 +145,6 @@ impl<T: TaskLabelType + Copy> DecisionTree<T> {
         }
 
         (Dataset::from(left_datas), Dataset::from(right_datas))
-    }
-
-    fn get_leaf_value(&self, dataset: &Dataset<T>) -> T {
-        let mut rations_by_label: HashMap<usize, f32> = HashMap::new();
-        for idx in 0..dataset.len() {
-            let (_, label) = dataset.get(idx);
-            *rations_by_label.entry(*label).or_insert(0.0) += 1.0;
-        }
-        rations_by_label.iter_mut().for_each(|n| {
-            *n.1 /= dataset.len() as f32;
-        });
-
-        match self.info_gain_type {
-            InfoGains::Gini => rations_by_label.values().fold(1.0f32, |gini, x| gini - x * x),
-            InfoGains::Entropy => rations_by_label.values().fold(0.0, |entropy, x| entropy - x * x.log2())
     }
 }
 
