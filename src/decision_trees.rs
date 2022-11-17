@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{collections::{HashMap}};
+use std::{collections::{HashMap}, mem::swap};
 use crate::utils::{Dataset, Task, TaskLabelType};
 
 #[derive(Debug)]
@@ -84,7 +84,7 @@ impl TaskConditionedReturn<f32> for Dataset<f32> {
 
 
 
-impl<T: TaskLabelType + Copy> DecisionTree<T> {
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq> DecisionTree<T> {
     pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains, task: Task) -> Self {
         DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain, task: task}
     }
@@ -148,6 +148,33 @@ impl<T: TaskLabelType + Copy> DecisionTree<T> {
         }
 
         (Dataset::from(left_datas), Dataset::from(right_datas))
+    }
+
+    fn judge(&self, features: &Vec<f32>, node: &Box<Node<T>>) -> T {
+        if node.value.is_some() {
+            node.value.unwrap()
+        } else {
+            if features[node.feature_idx.unwrap()] < node.threshold.unwrap() {
+                self.judge(features, &node.as_ref().left.as_ref().unwrap())
+            } else {
+                self.judge(features, &node.as_ref().right.as_ref().unwrap())
+            }
+        }
+    }
+
+    pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
+        let mut node = self.root.as_ref().unwrap().clone();
+        // let mut parent;
+        let (feature, label) = item;
+        while node.value.is_none() {
+            println!("{:?} {:?}", node.feature_idx, node.info_gain);
+            if feature[node.feature_idx.unwrap()] < node.threshold.unwrap() {
+                node = &node.left.as_ref().unwrap().clone();
+            } else {
+                node = &node.right.as_ref().unwrap().clone();
+            }
+        }
+        node.value.unwrap() == *label
     }
 }
 

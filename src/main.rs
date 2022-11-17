@@ -19,9 +19,12 @@ fn main() {
     let path = ".data/IRIS.csv";
     let dataset = utils::Dataset::<usize>::from_name(utils::DatasetName::IrisDataset(path));
     let mut dct: decision_trees::DecisionTree<usize> = decision_trees::DecisionTree::new(3, 10, decision_trees::InfoGains::Entropy, utils::Task::Classification);
-
     dct.root = Some(Box::new(dct.build_trees(dataset, 0)));
-    println!("{:?}", dct);
+
+
+
+    let dataset = utils::Dataset::<usize>::from_name(utils::DatasetName::IrisDataset(path));
+    println!("{:?}", dct.predict(dataset.get(0)));
     
 
 
