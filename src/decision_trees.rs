@@ -3,13 +3,15 @@
 use std::{collections::{HashMap}};
 use crate::utils::{Dataset, Task, TaskLabelType};
 
-enum InfoGains {
+#[derive(Debug)]
+pub enum InfoGains {
     Gini,
     Entropy,
     Variation,
 }
 
-struct Node<T> {
+#[derive(Debug)]
+pub struct Node<T> {
     value: Option<T>,
     left: Option<Box<Node<T>>>,
     right: Option<Box<Node<T>>>,
@@ -18,15 +20,16 @@ struct Node<T> {
     info_gain: Option<f32>,
 }
 
-struct DecisionTree<T> {
-    root: Option<Box<Node<T>>>,
+#[derive(Debug)]
+pub struct DecisionTree<T> {
+    pub root: Option<Box<Node<T>>>,
     min_sample_split: usize,
     max_depth: usize,
     info_gain_type: InfoGains,
     task: Task
 }
 
-trait TaskConditionedReturn<T: TaskLabelType> {
+pub trait TaskConditionedReturn<T: TaskLabelType> {
     fn get_leaf_value(&self) -> T;
 
     fn calculate_info_gain(&self, info_gain_type: &InfoGains) -> f32;
