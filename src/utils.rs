@@ -44,7 +44,9 @@ fn process_iris_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Vec<String>
         )
     }
     let label_map: Vec<String> = label_map.into_iter().map(|(k, _)| k).collect();
-    println!("{:?}", labels);
+    if cfg!(test) {
+        println!("{:?}", labels);
+    }
     (features, labels, label_map)
 }
 

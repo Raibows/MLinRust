@@ -25,7 +25,20 @@ fn main() {
     println!("{:?}", train_dataset.labels);
 
 
-    let mut dct: decision_trees::DecisionTree<usize> = decision_trees::DecisionTree::new(3, 3, decision_trees::InfoGains::Gini, utils::Task::Classification);
+    let mut dct: decision_trees::DecisionTree<usize> = decision_trees::DecisionTree::new(1, 3, decision_trees::InfoGains::Gini, utils::Task::Classification);
+
+
+    let x = vec![
+        vec![1.0, 2.0, 3.0, 4.0],
+        vec![1.1, 2.0, 3.1, 4.0],
+        vec![1.1, 2.0, 3.0, 4.0],
+    ];
+    
+    let y = vec![0, 1, 2];
+    let temp_dataset = utils::Dataset::new(x, y, None);
+
+
+
     dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
 
     let mut correct = 0;
@@ -35,6 +48,7 @@ fn main() {
             false => {},
         }
     }
+    dct.print_self(&dct.root, 1);
     println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), correct as f32 / test_dataset.len() as f32);
 
 
