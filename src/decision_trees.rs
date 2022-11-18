@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::{collections::{HashMap}, mem::swap};
+use std::{collections::{HashMap}};
 use crate::utils::{Dataset, Task, TaskLabelType};
 
 #[derive(Debug)]
@@ -162,12 +162,16 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq> DecisionTree<T> {
         }
     }
 
+    // pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
+    //     self.judge(item.0, self.root.as_ref().unwrap()) == *item.1
+    // }
+
     pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
         let mut node = self.root.as_ref().unwrap().clone();
         // let mut parent;
         let (feature, label) = item;
         while node.value.is_none() {
-            println!("{:?} {:?}", node.feature_idx, node.info_gain);
+            // println!("{:?} {:?}", node.feature_idx, node.info_gain);
             if feature[node.feature_idx.unwrap()] < node.threshold.unwrap() {
                 node = &node.left.as_ref().unwrap().clone();
             } else {
@@ -177,28 +181,3 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq> DecisionTree<T> {
         node.value.unwrap() == *label
     }
 }
-
-
-// impl DecisionTree<usize> {
-//     fn calculate_info_gains(&self, dataset: &Dataset<usize>) -> f32 {
-//         let mut rations_by_label: HashMap<usize, f32> = HashMap::new();
-//         for idx in 0..dataset.len() {
-//             let (_, label) = dataset.get(idx);
-//             *rations_by_label.entry(*label).or_insert(0.0) += 1.0;
-//         }
-//         rations_by_label.iter_mut().for_each(|n| {
-//             *n.1 /= dataset.len() as f32;
-//         });
-
-//         match self.info_gain_type {
-//             InfoGains::Gini => rations_by_label.values().fold(1.0f32, |gini, x| gini - x * x),
-//             InfoGains::Entropy => rations_by_label.values().fold(0.0, |entropy, x| entropy - x * x.log2())
-//         }
-//     }
-// }
-
-// impl DecisionTree<f32> {
-//     fn calculate_info_gains(&self, dataset: &Dataset<f32>) -> f32 {
-//         0.0
-//     }
-// }

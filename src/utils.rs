@@ -1,4 +1,5 @@
-use std::{fs::OpenOptions, io::Read, collections::HashMap};
+use std::{fs::OpenOptions, io::Read, collections::HashMap, vec};
+use rand::{thread_rng, seq::SliceRandom};
 
 
 
@@ -48,7 +49,6 @@ fn process_iris_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Vec<String>
 }
 
 
-
 pub trait FromPathDataset {
     type Output;
     fn from_name(name: DatasetName) -> Self::Output;
@@ -80,24 +80,25 @@ impl<T: TaskLabelType> Default for Dataset<T> {
     }
 }
 
-impl<T:TaskLabelType> Dataset<T> {
+impl<T: TaskLabelType + Copy> From<Vec<(&Vec<f32>, &T)>> for Dataset<T> {
+    fn from(data: Vec<(&Vec<f32>, &T)>) -> Self {
+
+        let mut features = vec![];
+        let mut labels = vec![];
+
+        data.into_iter().for_each(|item| {
+            features.push((*item.0).clone());
+            labels.push(*item.1);
+        });
+
+        Dataset::<T>::new(features, labels, None)
+    }
+}
+
+impl<T:TaskLabelType + Copy> Dataset<T> {
     pub fn new(features: Vec<Vec<f32>>, labels: Vec<T>, label_map: Option<Vec<String>>) -> Self {
         Self { features: features, labels: labels, label_map: label_map}
     }
-
-    // pub fn from_file(name: DatasetName) -> std::io::Result<Dataset<T>> {
-    //     let mut buf = String::with_capacity(4096);
-    //     match name {
-    //         DatasetName::IrisDataset(path) => {
-    //             OpenOptions::new().read(true).open(path)?.read_to_string(&mut buf)?;
-    //             let res = process_iris_dataset(buf);
-    //             // Ok(Self::new(res.0, res.1, Some(res.2)))
-    //             Ok(Self {features: res.0, labels: res.1, label_map: Some(res.2)})
-    //         },
-    //     }
-
-        // Ok(Self::new(vec![vec![]], vec![], None))
-    // }
 
     pub fn len(&self) -> usize {
         self.features.len()
@@ -134,23 +135,48 @@ impl<T:TaskLabelType> Dataset<T> {
         assert!(idx < self.len());
         (&self.features[idx], &self.labels[idx])
     }
-}
 
-impl<T: TaskLabelType + Copy> From<Vec<(&Vec<f32>, &T)>> for Dataset<T> {
-    fn from(data: Vec<(&Vec<f32>, &T)>) -> Self {
+    pub fn shuffle(&mut self, seed: usize) {
+        let mut rng = thread_rng();
+        let mut idxs: Vec<usize> = (0..self.len()).collect();
+        idxs.shuffle(&mut rng);
+        let mut features = vec![vec![]; self.len()];
+        let mut labels = vec![*self.labels.first().unwrap(); self.len()];
+        for i in idxs {
+            features[i] = self.features.remove(0);
+            labels[i] = self.labels.remove(0);
+        }
+        self.features = features;
+        self.labels = labels;
+    }
 
-        let mut features = vec![];
-        let mut labels = vec![];
-
-        data.into_iter().for_each(|item| {
-            features.push((*item.0).clone());
-            labels.push(*item.1);
-        });
-
-        Dataset::<T>::new(features, labels, None)
+    pub fn split_dataset(mut self, mut ratio: Vec<f32>) -> Vec<Dataset<T>> {
+        let total = self.len();
+        let t = ratio.iter().sum::<f32>();
+        ratio.iter_mut().for_each(|item| *item /= t);
+        let mut res = vec![];
+        let mut start = 0;
+        for r in ratio {
+            let r = (total as f32 * r) as usize;
+            let mut features = Vec::with_capacity(r);
+            let mut labels = Vec::with_capacity(r);
+            for i in 0..r {
+                if start + i == total {
+                    break;
+                }
+                features.push(self.features.remove(0));
+                labels.push(self.labels.remove(0));
+            }
+            start += r;
+            res.push(Self::new(features, labels, self.label_map.clone()));
+        }
+        for (feature, label) in self.features.into_iter().zip(self.labels.into_iter()) {
+            res.last_mut().unwrap().features.push(feature);
+            res.last_mut().unwrap().labels.push(label);
+        }
+        res
     }
 }
-
 
 
 #[derive(PartialEq, Debug)]
@@ -158,28 +184,3 @@ pub enum Task {
     Classification, // argmax
     Regression, // value
 }
-
-
-// pub fn extract_features_labels(dataset: &Vec<HashMap<String, f32>>) -> (Vec<HashMap<String, f32>>, Vec<HashMap<String, f32>>) {
-//     let features: Vec<HashMap<String, f32>> = dataset.iter().map(|x| {
-//         let t: HashMap<String, f32> = x.iter().filter_map(|item| {
-//             if item.0 != "label" {
-//                 Some((item.0.clone(), *item.1))
-//             } else {
-//                 None
-//             }
-//         }).collect();
-//         t
-//     }).collect();
-//     let labels: Vec<HashMap<String, f32>> = dataset.iter().map(|x| {
-//         let t: HashMap<String, f32> = x.iter().filter_map(|item| {
-//             if item.0 == "label" {
-//                 Some((item.0.clone(), *item.1))
-//             } else {
-//                 None
-//             }
-//         }).collect();
-//         t
-//     }).collect();
-//     (features, labels)
-// }
