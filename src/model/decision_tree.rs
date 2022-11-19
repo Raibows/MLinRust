@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{collections::{HashMap}};
-use crate::dataset::{Dataset, Task, TaskLabelType};
+use crate::dataset::{Dataset, TaskLabelType};
 use super::Model;
 
 
@@ -28,7 +28,6 @@ pub struct DecisionTree<T: TaskLabelType> {
     min_sample_split: usize,
     max_depth: usize,
     info_gain_type: InfoGains,
-    task: Task
 }
 
 pub trait TaskConditionedReturn<T: TaskLabelType> {
@@ -106,11 +105,17 @@ impl<T: TaskLabelType + Copy> Model<T> for DecisionTree<T> {
 
 
 impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
-    pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains, task: Task) -> Self {
-        DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain, task: task}
+    pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains) -> Self {
+        DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain}
     }
 
-    pub fn build_trees(&mut self, dataset: Dataset<T>, current_depth: usize) -> Node<T> where Dataset<T>: TaskConditionedReturn<T>
+    pub fn init(&mut self, dataset: Dataset<T>) 
+    where Dataset<T>: TaskConditionedReturn<T> 
+    {
+        self.root = Some(Box::new(self.build_trees(dataset, 0)));
+    }
+
+    fn build_trees(&mut self, dataset: Dataset<T>, current_depth: usize) -> Node<T> where Dataset<T>: TaskConditionedReturn<T>
     {
         let sample_num = dataset.len();
         // let feature_num = dataset.feature_len();
@@ -210,7 +215,7 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
 mod test {
     use crate::dataset::{DatasetName, FromPathDataset};
     use crate::utils::evaluate;
-    use super::{Dataset, Task};
+    use super::{Dataset};
     use super::{DecisionTree, InfoGains};
 
 
@@ -224,8 +229,8 @@ mod test {
     
         let y = vec![0, 1, 2];
         let temp_dataset = Dataset::new(x, y, None);
-        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
-        dct.root = Some(Box::new(dct.build_trees(temp_dataset, 0)));
+        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
+        dct.init(temp_dataset);
         dct.print_self(&dct.root, 0);
 
         assert!(false);
@@ -238,8 +243,8 @@ mod test {
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
-        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
-        dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
+        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
+        dct.init(train_dataset);
 
         dct.print_self(&dct.root, 0);
 
@@ -256,8 +261,8 @@ mod test {
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
-        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
-        dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
+        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
+        dct.init(train_dataset);
 
         dct.print_self(&dct.root, 0);
 

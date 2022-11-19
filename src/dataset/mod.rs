@@ -16,13 +16,6 @@ pub struct Dataset<T: TaskLabelType> {
     pub label_map: Option<Vec<String>>,
 }
 
-
-#[derive(PartialEq, Debug)]
-pub enum Task {
-    Classification, // argmax
-    Regression, // value
-}
-
 pub trait TaskLabelType {}
 impl TaskLabelType for f32 {}
 impl TaskLabelType for usize {}
@@ -63,16 +56,6 @@ impl FromPathDataset for Dataset<f32> {
     type Output = Dataset<f32>;
 
     fn from_name(path: &str, name: DatasetName) -> Self::Output {
-        let res = match name {
-            // DatasetName::MobilePhonePricePredictDataset(p) => Self::read_data_from_file(p),
-            _ => todo!(),
-        };
-        // if let Ok(data) = res {
-        //     todo!()
-        // } else {
-        //     println!("Err when reading data {}");
-        //     Dataset::<f32>::default()
-        // }
         todo!()
     }
 }
