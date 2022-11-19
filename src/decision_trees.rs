@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{collections::{HashMap}};
-use crate::utils::{Dataset, Task, TaskLabelType};
+use crate::dataset::{Dataset, Task, TaskLabelType};
 
 #[derive(Debug)]
 pub enum InfoGains {
@@ -187,14 +187,14 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq + std::fmt::Display> Decision
 
     pub fn print_self(&self, node: &Option<Box<Node<T>>>, depth: usize) {
         if node.is_some() {
-            let width = " ".repeat((depth-1) * 7) + "-------";
+            let width = " ".repeat(depth * 7) + "-------";
             let t = node.as_ref().unwrap();
             if t.value.is_some() {
                 println!("{} {} VALUE: {}", depth, width, t.value.unwrap());
             } else {
-                println!("{} {} LEFT : fi{} < {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
+                println!("{} {} LEFT : F{:0>3} < {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
                 self.print_self(&node.as_ref().unwrap().as_ref().left, depth + 1);
-                println!("{} {} RIGHT: fi{} > {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
+                println!("{} {} RIGHT: F{:0>3} ≥ {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
                 self.print_self(&node.as_ref().unwrap().as_ref().right, depth + 1);
             }
         }
@@ -205,7 +205,8 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq + std::fmt::Display> Decision
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{Task, Dataset, FromPathDataset, DatasetName};
+    use crate::dataset::{DatasetName, FromPathDataset};
+    use super::{Dataset, Task};
     use super::{DecisionTree, InfoGains};
 
 
@@ -221,7 +222,7 @@ mod test {
         let temp_dataset = Dataset::new(x, y, None);
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
         dct.root = Some(Box::new(dct.build_trees(temp_dataset, 0)));
-        dct.print_self(&dct.root, 1);
+        dct.print_self(&dct.root, 0);
 
         assert!(false);
     }
@@ -229,7 +230,7 @@ mod test {
     #[test]
     fn test_iris_dataset() {
         let path = ".data/IRIS.csv";
-        let mut dataset = Dataset::<usize>::from_name(DatasetName::IrisDataset(path));
+        let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset);
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
@@ -237,7 +238,7 @@ mod test {
         dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
 
 
-        dct.print_self(&dct.root, 1);
+        dct.print_self(&dct.root, 0);
 
 
         let mut correct = 0;
@@ -251,5 +252,32 @@ mod test {
         println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
 
         assert!(acc > 0.7);
+    }
+
+    #[test]
+    fn test_mobile_phone_price_dataset() {
+        let path = ".data/MobilePhonePricePredict/train.csv";
+        let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
+        println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
+        let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
+        dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
+
+
+        dct.print_self(&dct.root, 0);
+
+
+        let mut correct = 0;
+        for i in 0..test_dataset.len() {
+            match dct.predict(test_dataset.get(i)) {
+                true => {correct += 1},
+                false => {},
+            }
+        }
+        let acc = correct as f32 / test_dataset.len() as f32;
+        println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
+
+        assert!(acc > 0.7)
     }
 }
