@@ -1,7 +1,7 @@
 
-pub mod decision_trees;
 pub mod utils;
 pub mod dataset;
+pub mod model;
 
 
 

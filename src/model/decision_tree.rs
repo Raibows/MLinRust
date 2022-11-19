@@ -2,6 +2,8 @@
 
 use std::{collections::{HashMap}};
 use crate::dataset::{Dataset, Task, TaskLabelType};
+use super::Model;
+
 
 #[derive(Debug)]
 pub enum InfoGains {
@@ -21,7 +23,7 @@ pub struct Node<T> {
 }
 
 #[derive(Debug)]
-pub struct DecisionTree<T> {
+pub struct DecisionTree<T: TaskLabelType> {
     pub root: Option<Box<Node<T>>>,
     min_sample_split: usize,
     max_depth: usize,
@@ -87,8 +89,23 @@ impl TaskConditionedReturn<f32> for Dataset<f32> {
 }
 
 
+impl<T: TaskLabelType + Copy> Model<T> for DecisionTree<T> {
+    fn predict(&self, feature: &Vec<f32>) -> T {
+        let mut node = self.root.as_ref().unwrap().clone();
+        // let mut parent;
+        while node.value.is_none() {
+            if feature[node.feature_idx.unwrap()] < node.threshold.unwrap() {
+                node = &node.left.as_ref().unwrap().clone();
+            } else {
+                node = &node.right.as_ref().unwrap().clone();
+            }
+        }
+        node.value.unwrap()
+    }
+}
 
-impl<T: TaskLabelType + Copy + std::cmp::PartialEq + std::fmt::Display> DecisionTree<T> {
+
+impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
     pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains, task: Task) -> Self {
         DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain, task: task}
     }
@@ -155,35 +172,21 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq + std::fmt::Display> Decision
         (Dataset::from(left_datas), Dataset::from(right_datas))
     }
 
-    fn judge(&self, features: &Vec<f32>, node: &Box<Node<T>>) -> T {
-        if node.value.is_some() {
-            node.value.unwrap()
-        } else {
-            if features[node.feature_idx.unwrap()] < node.threshold.unwrap() {
-                self.judge(features, &node.as_ref().left.as_ref().unwrap())
-            } else {
-                self.judge(features, &node.as_ref().right.as_ref().unwrap())
-            }
-        }
-    }
+    // fn judge(&self, features: &Vec<f32>, node: &Box<Node<T>>) -> T {
+    //     if node.value.is_some() {
+    //         node.value.unwrap()
+    //     } else {
+    //         if features[node.feature_idx.unwrap()] < node.threshold.unwrap() {
+    //             self.judge(features, &node.as_ref().left.as_ref().unwrap())
+    //         } else {
+    //             self.judge(features, &node.as_ref().right.as_ref().unwrap())
+    //         }
+    //     }
+    // }
 
     // pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
     //     self.judge(item.0, self.root.as_ref().unwrap()) == *item.1
     // }
-
-    pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
-        let mut node = self.root.as_ref().unwrap().clone();
-        // let mut parent;
-        let (feature, label) = item;
-        while node.value.is_none() {
-            if feature[node.feature_idx.unwrap()] < node.threshold.unwrap() {
-                node = &node.left.as_ref().unwrap().clone();
-            } else {
-                node = &node.right.as_ref().unwrap().clone();
-            }
-        }
-        node.value.unwrap() == *label
-    }
 
     pub fn print_self(&self, node: &Option<Box<Node<T>>>, depth: usize) {
         if node.is_some() {
@@ -206,6 +209,7 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq + std::fmt::Display> Decision
 #[cfg(test)]
 mod test {
     use crate::dataset::{DatasetName, FromPathDataset};
+    use crate::utils::evaluate;
     use super::{Dataset, Task};
     use super::{DecisionTree, InfoGains};
 
@@ -237,18 +241,9 @@ mod test {
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
         dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
 
-
         dct.print_self(&dct.root, 0);
 
-
-        let mut correct = 0;
-        for i in 0..test_dataset.len() {
-            match dct.predict(test_dataset.get(i)) {
-                true => {correct += 1},
-                false => {},
-            }
-        }
-        let acc = correct as f32 / test_dataset.len() as f32;
+        let (correct, acc) = evaluate(&test_dataset, &dct);
         println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
 
         assert!(acc > 0.7);
@@ -264,18 +259,9 @@ mod test {
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini, Task::Classification);
         dct.root = Some(Box::new(dct.build_trees(train_dataset, 0)));
 
-
         dct.print_self(&dct.root, 0);
 
-
-        let mut correct = 0;
-        for i in 0..test_dataset.len() {
-            match dct.predict(test_dataset.get(i)) {
-                true => {correct += 1},
-                false => {},
-            }
-        }
-        let acc = correct as f32 / test_dataset.len() as f32;
+        let (correct, acc) = evaluate(&test_dataset, &dct);
         println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
 
         assert!(acc > 0.7)
