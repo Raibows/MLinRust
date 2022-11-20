@@ -82,7 +82,7 @@ impl TaskConditionedReturn<f32> for Dataset<f32> {
                 let var = self.labels.iter().fold(0.0, |acc, item| acc + (item - mean) * (item - mean)) / self.len() as f32;
                 var
             },
-            _ => {assert!(false, "you should use variation!"); 0.0},
+            _ => panic!("you should use Variation for InfoGains but got {:?}", info_gain_type)
         }    
     }
 }
@@ -138,13 +138,17 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
     {
         // info_gain, feature_idx, threshold, left_dataset, right_dataset
         let mut best_splits = (f32::MIN, 0, f32::MIN, None, None);
+        let parent_info = dataset.calculate_information(&self.info_gain_type);
+        if parent_info <= 0.0 {
+            return best_splits;
+        }
         for fi in 0..dataset.feature_len() {
             let feature_values = dataset.get_feature_by_idx(fi);
             for threshold in dataset.get_unique_feature_values(fi) {
                 let (left_dataset, right_dataset) = self.split_dataset_by(dataset, &feature_values, *threshold);
 
                 if left_dataset.len() > 0 && right_dataset.len() > 0 {
-                    let current_info_gains = dataset.calculate_information(&self.info_gain_type) - 
+                    let current_info_gains = parent_info - 
                     (left_dataset.len() as f32 / dataset.len() as f32) * left_dataset.calculate_information(&self.info_gain_type) - 
                     (right_dataset.len() as f32 / dataset.len() as f32) * right_dataset.calculate_information(&self.info_gain_type);
                     if cfg!(test) {
@@ -213,8 +217,8 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::dataset::{DatasetName, FromPathDataset};
-    use crate::utils::evaluate;
+    use crate::dataset::{DatasetName, FromPathDataset, self};
+    use crate::utils::{evaluate, evaluate_regression};
     use super::{Dataset};
     use super::{DecisionTree, InfoGains};
 
@@ -270,5 +274,21 @@ mod test {
         println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
 
         assert!(acc > 0.7)
+    }
+
+    #[test]
+    fn test_car_price_regression_dataset() {
+        let path = ".data/TianchiCarPriceRegression/train_5w.csv";
+        let dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
+        println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
+
+        let mut dct = DecisionTree::new(100, 3, InfoGains::Variation);
+        dct.init(train_dataset);
+        dct.print_self(&dct.root, 0);
+
+        let abs_error = evaluate_regression(&test_dataset, &dct);
+        println!("mean absolute error {:.5}", abs_error);
     }
 }

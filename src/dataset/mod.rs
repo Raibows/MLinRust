@@ -7,9 +7,11 @@ mod car_price_dataset;
 mod utils;
 
 
+#[derive(Debug)]
 pub enum DatasetName {
     IrisDataset,
     MobilePhonePricePredictDataset,
+    CarPriceRegressionDataset,
 }
 
 pub struct Dataset<T: TaskLabelType> {
@@ -45,11 +47,11 @@ impl FromPathDataset for Dataset<usize> {
                 DatasetName::MobilePhonePricePredictDataset => {
                     let (features, labels, label_map) = mobile_phone_price_predict::process_mobile_phone_price_dataset(data);
                     Dataset::new(features, labels, label_map)
-                }
+                },
+                _ => unimplemented!("dataset type {:?} is not implemented for classification<usize>", name),
             }
         } else {
-            println!("Err when reading data");
-            return Dataset::<usize>::default()
+            panic!("Err when reading data from {}", path)
         }
     }
 }
@@ -58,7 +60,17 @@ impl FromPathDataset for Dataset<f32> {
     type Output = Dataset<f32>;
 
     fn from_name(path: &str, name: DatasetName) -> Self::Output {
-        todo!()
+        if let Ok(data) = Self::read_data_from_file(path) {
+            match name {
+                DatasetName::CarPriceRegressionDataset => {
+                    let (features, labels, label_map) = car_price_dataset::process_tianchi_car_price_regression_dataset(data);
+                    Dataset::new(features, labels, label_map)
+                },
+                _ => unimplemented!("dataset type {:?} is not implemented for regression<f32>", name),
+            }
+        } else {
+            panic!("Err when reading data from {}", path)
+        }
     }
 }
 
@@ -140,8 +152,10 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
 
     pub fn split_dataset(mut self, mut ratio: Vec<f32>) -> Vec<Dataset<T>> {
         let total = self.len();
+        // normalize the passed in ratio to ensure the sum is 1.0
         let t = ratio.iter().sum::<f32>();
         ratio.iter_mut().for_each(|item| *item /= t);
+        
         let mut res = vec![];
         let mut start = 0;
         for r in ratio {
