@@ -3,6 +3,8 @@ use rand::{thread_rng, seq::SliceRandom};
 
 mod iris_dataset;
 mod mobile_phone_price_predict;
+mod car_price_dataset;
+mod utils;
 
 
 pub enum DatasetName {
