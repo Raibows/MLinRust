@@ -52,7 +52,7 @@ impl ReshapeTrait for Vec<usize> {
 impl NdArrayNewTrait for Vec<usize> {
     // from the specify shape
     fn new(self) -> NdArray {
-        let n = self.iter().fold(1, |s, i| s * *i);
+        let n = NdArray::total_num(&self);
         NdArray { shape: self, data: vec![0.0; n] }
     }
 }
