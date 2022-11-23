@@ -2,6 +2,7 @@ pub mod utils;
 pub mod dataset;
 pub mod model;
 pub mod matrix;
+pub mod ndarray;
 
 use dataset::{Dataset, FromPathDataset, DatasetName};
 use model::decision_tree::{DecisionTree, InfoGains};
