@@ -73,7 +73,83 @@ impl NdArrayNewTrait for Vec<Vec<f32>> {
 
 impl std::fmt::Display for NdArray {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        fn print_row(f: &mut std::fmt::Formatter<'_>, row: &[f32]) -> std::fmt::Result {
+            write!(f, "[")?;
+            if row.len() <= 20 {
+                for i in row.iter().take(row.len() - 1) {
+                    write!(f, "{}, ", i)?;
+                }
+            } else {
+                for i in row.iter().take(10) {
+                    write!(f, "{}, ", i)?;
+                }
+                write!(f, "..., ")?;
+                for i in row.iter().skip(row.len() - 9) {
+                    write!(f, "{}, ", i)?;
+                }
+            }
+            write!(f, "{}]", row[row.len() - 1])?;
+            Ok(())
+        }
+
+        fn recursive_print(data: &[f32], shape: &Vec<usize>, cursor: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let width = " ";
+            if cursor == shape.len() - 1 {
+                write!(f, "{}[", width.repeat(4 * (cursor)))?;
+                print_row(f, data)?;
+                write!(f, "]")?;
+            } else if cursor == shape.len() - 2 {
+                // print it, since it is a vector now
+                write!(f, "{}[\n", width.repeat(4 * cursor))?;
+                let row_size = shape.last().unwrap();
+                for i in 0..shape[cursor] {
+                    write!(f, "{}[", width.repeat(4 * (cursor + 1)))?;
+                    print_row(f, &data[i*row_size..(i+1)*row_size])?;
+                    write!(f, "],\n")?;
+                }
+                write!(f, "{}]\n", width.repeat(4 * cursor))?;
+            } else {
+                let res_size: usize = shape.iter().skip(cursor+1).sum();
+                for i in 0..shape[cursor] {
+                    write!(f, "{}[\n", width.repeat(4 * cursor))?;
+                    recursive_print(&data[i*res_size..(i+1)*res_size], shape, cursor+1, f)?;
+                    write!(f, "{}]\n", width.repeat(4 * cursor))?;
+                }
+            }
+            Ok(())
+        }
+
+
+        
+
+        fn recursive2_print(data: &[f32], shape: &Vec<usize>, cursor: usize, f: &mut std::fmt::Formatter<'_>, width: usize) -> std::fmt::Result {
+            let blank = " ".repeat(width * cursor);
+            if cursor == shape.len() - 1 {
+                write!(f, "{}", blank)?;
+                print_row(f, data)?;
+                if cursor > 0 {
+                    write!(f, "\n")?;
+                }
+            } else {
+                write!(f, "{}[\n", blank)?;
+                let base: usize = shape.iter().skip(cursor + 1).fold(1, |s, i| s * i);
+                for i in 0..shape[cursor] - 1 {
+                    recursive2_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                }
+                let i = shape[cursor] - 1;
+                recursive2_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                if cursor == 0 {
+                    write!(f, "{}]", blank)?;
+                } else {
+                    write!(f, "{}],\n", blank)?;
+                }
+            }
+            Ok(())
+        }
+
+        recursive2_print(&self.data[..], &self.shape, 0, f, 2)?;
+        write!(f, ", ndarray: {:?}", self.shape)?;
+        Ok(())
     }
 }
 
@@ -126,5 +202,25 @@ mod test {
         println!("b.shape = {:?}", b.shape);
         println!("broadcast b + a = {}", NdArray::can_broadcast(&b.shape, &a.shape));
         assert!(NdArray::can_broadcast(&b.shape, &a.shape));
+    }
+
+    #[test]
+    fn test_fmt_display() {
+        let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        println!("{}", a);
+
+        a.reshape(vec![2, 3]);
+        println!("{}", a);
+
+        a.reshape(vec![3, 2]);
+        println!("{}", a);
+
+        let mut a = NdArray::new((0..16).map(|i| i as f32).collect::<Vec<f32>>());
+        a.reshape(vec![2, 2, 4]);
+        println!("{}", a);
+
+        let mut a = NdArray::new((0..128).map(|i| i as f32).collect::<Vec<f32>>());
+        a.reshape(vec![2, 2, 32]);
+        println!("{}", a);
     }
 }

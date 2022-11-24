@@ -103,8 +103,6 @@ impl NdArrayMultiplyTrait for &NdArray {
             let rm = &self.data[r*right_matrix_ele_num..(r+1)*right_matrix_ele_num];
             let t = &mut target.data[l*target_matrix_ele_num..(l+1)*target_matrix_ele_num];
 
-            // println!("lm {} rm {} t {}", lm.len(), rm.len(), t.len());
-
             for j in 0..right_matrix_shape[1] {
                 for li in 0..left_matrix_shape[0] {
                     let mut res = 0.0;
