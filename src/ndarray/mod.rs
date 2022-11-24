@@ -2,16 +2,16 @@ mod ops;
 
 
 #[derive(Debug, Clone)]
-struct NdArray {
-    shape: Vec<usize>,
+pub struct NdArray {
+    pub shape: Vec<usize>,
     data: Vec<f32>,
 }
 
-trait NdArrayNewTrait {
+pub trait NdArrayNewTrait {
     fn new(self) -> NdArray;
 }
 
-trait ReshapeTrait {
+pub trait ReshapeTrait {
     fn reshape(&self, source: &Vec<usize>) -> Vec<usize>;
 }
 impl ReshapeTrait for Vec<i32> {
@@ -92,37 +92,7 @@ impl std::fmt::Display for NdArray {
             Ok(())
         }
 
-        fn recursive_print(data: &[f32], shape: &Vec<usize>, cursor: usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let width = " ";
-            if cursor == shape.len() - 1 {
-                write!(f, "{}[", width.repeat(4 * (cursor)))?;
-                print_row(f, data)?;
-                write!(f, "]")?;
-            } else if cursor == shape.len() - 2 {
-                // print it, since it is a vector now
-                write!(f, "{}[\n", width.repeat(4 * cursor))?;
-                let row_size = shape.last().unwrap();
-                for i in 0..shape[cursor] {
-                    write!(f, "{}[", width.repeat(4 * (cursor + 1)))?;
-                    print_row(f, &data[i*row_size..(i+1)*row_size])?;
-                    write!(f, "],\n")?;
-                }
-                write!(f, "{}]\n", width.repeat(4 * cursor))?;
-            } else {
-                let res_size: usize = shape.iter().skip(cursor+1).sum();
-                for i in 0..shape[cursor] {
-                    write!(f, "{}[\n", width.repeat(4 * cursor))?;
-                    recursive_print(&data[i*res_size..(i+1)*res_size], shape, cursor+1, f)?;
-                    write!(f, "{}]\n", width.repeat(4 * cursor))?;
-                }
-            }
-            Ok(())
-        }
-
-
-        
-
-        fn recursive2_print(data: &[f32], shape: &Vec<usize>, cursor: usize, f: &mut std::fmt::Formatter<'_>, width: usize) -> std::fmt::Result {
+        fn recursive_print(data: &[f32], shape: &Vec<usize>, cursor: usize, f: &mut std::fmt::Formatter<'_>, width: usize) -> std::fmt::Result {
             let blank = " ".repeat(width * cursor);
             if cursor == shape.len() - 1 {
                 write!(f, "{}", blank)?;
@@ -134,10 +104,10 @@ impl std::fmt::Display for NdArray {
                 write!(f, "{}[\n", blank)?;
                 let base: usize = shape.iter().skip(cursor + 1).fold(1, |s, i| s * i);
                 for i in 0..shape[cursor] - 1 {
-                    recursive2_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                    recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
                 }
                 let i = shape[cursor] - 1;
-                recursive2_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
                 if cursor == 0 {
                     write!(f, "{}]", blank)?;
                 } else {
@@ -147,26 +117,26 @@ impl std::fmt::Display for NdArray {
             Ok(())
         }
 
-        recursive2_print(&self.data[..], &self.shape, 0, f, 2)?;
+        recursive_print(&self.data[..], &self.shape, 0, f, 2)?;
         write!(f, ", ndarray: {:?}", self.shape)?;
         Ok(())
     }
 }
 
 impl NdArray {
-    fn new<T: NdArrayNewTrait>(arg: T) -> Self {
+    pub fn new<T: NdArrayNewTrait>(arg: T) -> Self {
         arg.new()
     }
 
-    fn dim(&self) -> usize {
+    pub fn dim(&self) -> usize {
         self.shape.len()
     }
 
-    fn reshape<T: ReshapeTrait>(&mut self, shape: T) {
+    pub fn reshape<T: ReshapeTrait>(&mut self, shape: T) {
         self.shape = shape.reshape(&self.shape);
     }
 
-    fn total_num(v: &Vec<usize>) -> usize {
+    pub fn total_num(v: &Vec<usize>) -> usize {
         v.iter().fold(1, |s, i| s * i)
     }
 
@@ -184,6 +154,66 @@ impl NdArray {
             }
             judge
         }
+    }
+
+    pub fn index_base_sizes(shape: &Vec<usize>) -> Vec<usize> {
+        // help you to calculate the index of data
+        let mut sizes: Vec<usize> = shape.iter().rev().fold(vec![1], |mut s, i| {
+            s.push(s.last().unwrap() * i);
+            s    
+        });
+        sizes.pop();
+        sizes.reverse();
+        sizes
+    }
+
+    pub fn permute(&self, order: Vec<usize>) -> NdArray {
+        // check whether the order is valid
+        // e.g., transpose [0, 1] -> [1, 0]
+        assert!(order.len() == self.dim());
+        let mut tgt_shape = vec![0usize; self.dim()];
+        let mut check = vec![false; self.dim()];
+        let mut src_tgt_map = vec![0usize; self.dim()];
+        for (i, item) in order.iter().enumerate() {
+            if check.get(*item).is_none() || check[*item] {
+                panic!("Permute Error, check target order {:?}", order);
+            } else {
+                check[*item] = true;
+                tgt_shape[i] = self.shape[*item];
+                src_tgt_map[*item] = i;
+            }
+        }
+
+        // prepare indexs to move data
+        let mut target_data = vec![0.0f32; NdArray::total_num(&self.shape)];
+
+        let src_sizes = NdArray::index_base_sizes(&self.shape);
+        let tgt_sizes = NdArray::index_base_sizes(&tgt_shape);
+
+        // start moving
+        fn recursive_move(dim: usize, pos: usize, src_data_i: usize, tgt_data_i: usize, src_sizes: &Vec<usize>, tgt_sizes: &Vec<usize>, src_data: &Vec<f32>, tgt_data: &mut Vec<f32>, src_shapes: &Vec<usize>, tgt_shapes: &Vec<usize>, src_tgt_pos_map: &Vec<usize>) {
+            if pos == dim - 1 {
+                for i in 0..src_shapes[pos] {
+                    let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
+                    let si = src_data_i + i * src_sizes[pos];
+                    // println!("src_sizes = {:?}, tgt_sizes = {:?} \nti = {}, si = {}", src_sizes, tgt_sizes, ti, si);
+                    tgt_data[ti] = src_data[si];
+                }
+            } else {
+                for i in 0..src_shapes[pos] {
+                    let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
+                    let si = src_data_i + src_sizes[pos] * i;
+                    recursive_move(dim, pos + 1, si, ti, src_sizes, tgt_sizes, src_data, tgt_data, src_shapes, tgt_shapes, src_tgt_pos_map);
+                }
+            }
+        }
+        
+        recursive_move(self.dim(), 0, 0, 0, &src_sizes, &tgt_sizes, &self.data, &mut target_data, &self.shape, &tgt_shape, &src_tgt_map);
+
+        let mut target = NdArray::new(target_data);
+        target.reshape(tgt_shape);
+
+        target
     }
 }
 
@@ -222,5 +252,39 @@ mod test {
         let mut a = NdArray::new((0..128).map(|i| i as f32).collect::<Vec<f32>>());
         a.reshape(vec![2, 2, 32]);
         println!("{}", a);
+    }
+
+    #[test]
+    fn test_permute() {
+        let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        a.reshape(vec![2, 3]);
+        println!("{}", a);
+        let b = a.permute(vec![1, 0]);
+        println!("after permute transpose");
+        println!("{}", b);
+        let bb = NdArray::new(
+            vec![
+                vec![1.0, 4.0], 
+                vec![2.0, 5.0], 
+                vec![3.0, 6.0],
+            ]
+        );
+        assert_eq!(bb, b);
+        assert_eq!(a, bb.permute(vec![1, 0]));
+
+        println!("here-----------------\n\n");
+        let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        a.reshape(vec![1, 2, 3]);
+        let b = a.permute(vec![2, 0, 1]);
+        println!("{}", b);
+        let mut bb = NdArray::new(
+            vec![
+                vec![1.0, 4.0], 
+                vec![2.0, 5.0], 
+                vec![3.0, 6.0],
+            ]
+        );
+        bb.reshape(vec![3, 1, 2]);
+        assert_eq!(bb, b);
     }
 }

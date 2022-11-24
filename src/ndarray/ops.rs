@@ -231,4 +231,26 @@ mod test {
         cc.reshape(vec![1, 2, 3, 1]);
         assert_eq!(cc, c);
     }
+
+    #[test]
+    fn test_multiply_profile() {
+        use std::time::{Instant, Duration};
+        const psize: usize = 512 * 512 * 512;
+        let mut a = NdArray::new((0..psize).map(|i| i as f32).collect::<Vec<f32>>());
+        a.reshape(vec![8, 128, 256, 512]);
+
+        let mut b = NdArray::new((0..psize).map(|i| i as f32).collect::<Vec<f32>>());
+        b.reshape(vec![128, 512, 2048]);
+
+        let start = Instant::now();
+        let _ = &a * &b;
+        let dur = start.elapsed();
+        println!("execute {:?}", dur);
+        assert!(dur > Duration::from_secs_f32(600.0));
+    }
+
+    #[test]
+    fn test_random_thing() {
+        todo!()
+    }
 }
