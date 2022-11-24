@@ -86,14 +86,6 @@ impl NdArray {
         self.shape.len()
     }
 
-    // fn index(&self, idx: usize) -> Self {
-    //     // take a copy
-    //     assert!(idx < self.shape[0]);
-    //     let (s, e) = self.shape.iter().skip(1).fold((idx , idx+1), |s, i| (s.0*i, s.1 * i));
-    //     let data: Vec<f32> = self.data.iter().skip(s).take(e - s).map(|i| *i).collect();
-    //     Self::new(data)    
-    // }
-
     fn reshape<T: ReshapeTrait>(&mut self, shape: T) {
         self.shape = shape.reshape(&self.shape);
     }
@@ -123,7 +115,6 @@ impl NdArray {
 mod test {
     use super::NdArray;
 
-
     #[test]
     fn test_new() {
         let mut a = NdArray::new(vec![1.0, 2.0, 3.0]);
@@ -134,5 +125,6 @@ mod test {
         b.reshape(vec![10, -1, 3, 1]);
         println!("b.shape = {:?}", b.shape);
         println!("broadcast b + a = {}", NdArray::can_broadcast(&b.shape, &a.shape));
+        assert!(NdArray::can_broadcast(&b.shape, &a.shape));
     }
 }
