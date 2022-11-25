@@ -59,62 +59,80 @@ impl std::ops::Sub<&NdArray> for &NdArray {
     }
 }
 
+impl std::ops::Div<f32> for &NdArray {
+    type Output = NdArray;
+    fn div(self, rhs: f32) -> Self::Output {
+        // avoid overflow
+        let rhs = f32::max(1e-6, rhs); 
+        (1.0 / rhs).multiply(self)
+    }
+}
+
 // multiply-------------------------------
+fn multiply(lhs: &NdArray, rhs: &NdArray) -> NdArray {
+    // check if could multiply
+    assert!(rhs.dim() >= 2 && lhs.dim() >= 2, "only supports 2d matrix multiplication, but got left = {:?} right = {:?}, please reshape first", lhs.shape, rhs.shape);
+
+    let left_matrix_shape = vec![lhs.shape[lhs.dim() - 2], lhs.shape[lhs.dim() - 1]];
+    let right_matrix_shape = vec![rhs.shape[rhs.dim() - 2], rhs.shape[rhs.dim() - 1]];
+
+    assert!(left_matrix_shape[1] == right_matrix_shape[0], "got left = {:?} right = {:?}, please check shape", lhs.shape, rhs.shape);
+
+    // check if could broadcast despite the low-2 dimension shape
+    let lhs_broadcast_shape = lhs.shape.iter().take(lhs.dim() - 2).map(|i| *i).collect();
+    let rhs_broadcast_shape = rhs.shape.iter().take(rhs.dim() - 2).map(|i| *i).collect();
+    assert!(NdArray::can_broadcast(&lhs_broadcast_shape, &rhs_broadcast_shape), "{:?} cannot be broadcasted by {:?}", lhs_broadcast_shape, rhs_broadcast_shape);
+
+    // prepare the target
+    let mut target_shape = lhs_broadcast_shape.clone();
+    let target_matrix_shape = vec![left_matrix_shape[0], right_matrix_shape[1]];
+    target_shape.extend(target_matrix_shape.iter());
+    let mut target = NdArray::new(target_shape);
+    
+    // prepare the index
+    let left_matrix_ele_num = NdArray::total_num(&left_matrix_shape);
+    let right_matrix_ele_num = NdArray::total_num(&right_matrix_shape);
+    let target_matrix_ele_num = NdArray::total_num(&target_matrix_shape);
+
+    let left_iters: Vec<usize> = (0..NdArray::total_num(&lhs.shape) / left_matrix_ele_num).collect();
+    let right_iters: Vec<usize> = (0..NdArray::total_num(&rhs.shape) / right_matrix_ele_num).collect();
+    let target_iters: Vec<usize> = (0..NdArray::total_num(&target.shape) / target_matrix_ele_num).collect();
+    assert!(left_iters.len() == target_iters.len());
+
+    // multiplication
+
+    for (l, r) in left_iters.iter().zip(right_iters.iter().cycle()) { 
+        let lm = &lhs.data[l*left_matrix_ele_num..(l+1)*left_matrix_ele_num];
+        let rm = &rhs.data[r*right_matrix_ele_num..(r+1)*right_matrix_ele_num];
+        let t = &mut target.data[l*target_matrix_ele_num..(l+1)*target_matrix_ele_num];
+
+        for j in 0..right_matrix_shape[1] {
+            for li in 0..left_matrix_shape[0] {
+                let mut res = 0.0;
+                for i in 0..right_matrix_shape[0] {
+                    res += lm[li * left_matrix_shape[1] + i] * rm[i * right_matrix_shape[1] + j];
+                }
+                t[li * target_matrix_shape[1] + j] = res;
+            }
+        }
+    }
+
+    target
+}
+
 trait NdArrayMultiplyTrait {
     fn multiply(self, lhs: &NdArray) -> NdArray;
 }
 
 impl NdArrayMultiplyTrait for &NdArray {
-
     fn multiply(self, lhs: &NdArray) -> NdArray {
-        // check if could multiply
-        assert!(self.dim() >= 2 && lhs.dim() >= 2, "only supports 2d matrix multiplication, but got left = {:?} right = {:?}, please reshape first", lhs.shape, self.shape);
+        multiply(lhs, self)
+    }
+}
 
-        let left_matrix_shape = vec![lhs.shape[lhs.dim() - 2], lhs.shape[lhs.dim() - 1]];
-        let right_matrix_shape = vec![self.shape[self.dim() - 2], self.shape[self.dim() - 1]];
-
-        assert!(left_matrix_shape[1] == right_matrix_shape[0], "got left = {:?} right = {:?}, please check shape", lhs.shape, self.shape);
-
-        // check if could broadcast despite the low-2 dimension shape
-        let lhs_broadcast_shape = lhs.shape.iter().take(lhs.dim() - 2).map(|i| *i).collect();
-        let rhs_broadcast_shape = self.shape.iter().take(self.dim() - 2).map(|i| *i).collect();
-        assert!(NdArray::can_broadcast(&lhs_broadcast_shape, &rhs_broadcast_shape), "{:?} cannot be broadcasted by {:?}", lhs_broadcast_shape, rhs_broadcast_shape);
-
-        // prepare the target
-        let mut target_shape = lhs_broadcast_shape.clone();
-        let target_matrix_shape = vec![left_matrix_shape[0], right_matrix_shape[1]];
-        target_shape.extend(target_matrix_shape.iter());
-        let mut target = NdArray::new(target_shape);
-        
-        // prepare the index
-        let left_matrix_ele_num = NdArray::total_num(&left_matrix_shape);
-        let right_matrix_ele_num = NdArray::total_num(&right_matrix_shape);
-        let target_matrix_ele_num = NdArray::total_num(&target_matrix_shape);
-
-        let left_iters: Vec<usize> = (0..NdArray::total_num(&lhs.shape) / left_matrix_ele_num).collect();
-        let right_iters: Vec<usize> = (0..NdArray::total_num(&self.shape) / right_matrix_ele_num).collect();
-        let target_iters: Vec<usize> = (0..NdArray::total_num(&target.shape) / target_matrix_ele_num).collect();
-        assert!(left_iters.len() == target_iters.len());
-
-        // multiplication
-
-        for (l, r) in left_iters.iter().zip(right_iters.iter().cycle()) { 
-            let lm = &lhs.data[l*left_matrix_ele_num..(l+1)*left_matrix_ele_num];
-            let rm = &self.data[r*right_matrix_ele_num..(r+1)*right_matrix_ele_num];
-            let t = &mut target.data[l*target_matrix_ele_num..(l+1)*target_matrix_ele_num];
-
-            for j in 0..right_matrix_shape[1] {
-                for li in 0..left_matrix_shape[0] {
-                    let mut res = 0.0;
-                    for i in 0..right_matrix_shape[0] {
-                        res += lm[li * left_matrix_shape[1] + i] * rm[i * right_matrix_shape[1] + j];
-                    }
-                    t[li * target_matrix_shape[1] + j] = res;
-                }
-            }
-        }
-
-        target    
+impl NdArrayMultiplyTrait for &mut NdArray {
+    fn multiply(self, lhs: &NdArray) -> NdArray {
+        multiply(lhs, self)
     }
 }
 
@@ -247,10 +265,5 @@ mod test {
         let dur = start.elapsed();
         println!("execute {:?}", dur);
         assert!(dur > Duration::from_secs_f32(600.0));
-    }
-
-    #[test]
-    fn test_random_thing() {
-        todo!()
     }
 }
