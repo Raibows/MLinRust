@@ -1,3 +1,5 @@
+use self::utils::check_dim_is_legal;
+
 mod ops;
 pub mod utils;
 
@@ -215,6 +217,20 @@ impl NdArray {
         target.reshape(tgt_shape);
 
         target
+    }
+
+    pub fn clear(&mut self) {
+        self.data.iter_mut().for_each(|i| *i = 0.0);
+    }
+
+    pub fn squeeze(&mut self, dim: i32) {
+        let udim = check_dim_is_legal(dim, self.dim());
+        assert!(self.shape[udim] == 1, "the shape is {:?}, shape[dim={}] = {} != 1", self.shape, udim, self.shape[udim]);
+        self.shape.remove(udim);
+    }
+
+    pub fn destroy(self) -> (Vec<usize>, Vec<f32>) {
+        (self.shape, self.data)
     }
 }
 
