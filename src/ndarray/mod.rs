@@ -1,4 +1,5 @@
 mod ops;
+pub mod utils;
 
 
 #[derive(Debug, Clone)]
