@@ -4,5 +4,6 @@ pub mod logistic_regression;
 pub mod utils;
 
 pub trait Model<T: TaskLabelType> {
+    // todo implement generics for feature to accept batch or ndarray etc.
     fn predict(&self, feature: &Vec<f32>) -> T;
 }
