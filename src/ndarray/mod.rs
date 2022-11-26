@@ -232,6 +232,10 @@ impl NdArray {
     pub fn destroy(self) -> (Vec<usize>, Vec<f32>) {
         (self.shape, self.data)
     }
+
+    pub fn data_as_vector(&mut self) -> &mut [f32] {
+        &mut self.data
+    }
 }
 
 #[cfg(test)]
