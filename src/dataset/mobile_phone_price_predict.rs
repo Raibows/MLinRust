@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 
-pub fn process_mobile_phone_price_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Option<Vec<String>>) {
+pub fn process_mobile_phone_price_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Option<HashMap<usize, String>>) {
     // x = 20 features
     // y = usize price range
     // in test dataset, the first column is id and there is no golden label
@@ -26,7 +26,7 @@ pub fn process_mobile_phone_price_dataset(data: String) -> (Vec<Vec<f32>>, Vec<u
         );
     }
 
-    let label_map: Vec<String> = label_map.into_iter().map(|(k, _)| k).collect();
+    let label_map = label_map.into_iter().map(|(k, v)| (v, k)).collect();
 
     (features, labels, Some(label_map))
 }

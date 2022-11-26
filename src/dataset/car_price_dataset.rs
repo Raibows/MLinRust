@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use super::utils::{ImputeType, impute_lost_values};
 
-pub fn process_tianchi_car_price_regression_dataset(data: String) -> (Vec<Vec<f32>>, Vec<f32>, Option<Vec<String>>) {
+pub fn process_tianchi_car_price_regression_dataset(data: String) -> (Vec<Vec<f32>>, Vec<f32>, Option<HashMap<usize, String>>) {
     let lines: Vec<&str> = data.split("\n").collect();
     let mut lines = lines.into_iter();
     let header = lines.next().unwrap().split(" ").enumerate().find(|(_, item)| *item == "price").unwrap().0;

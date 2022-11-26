@@ -1,10 +1,11 @@
-use std::{fs::OpenOptions, io::Read};
+use std::{fs::OpenOptions, io::Read, collections::HashMap};
 use rand::{thread_rng, seq::SliceRandom};
 
 mod iris_dataset;
 mod mobile_phone_price_predict;
 mod car_price_dataset;
 mod utils;
+pub mod dataloader;
 
 
 #[derive(Debug)]
@@ -17,7 +18,7 @@ pub enum DatasetName {
 pub struct Dataset<T: TaskLabelType> {
     pub features: Vec<Vec<f32>>,
     pub labels: Vec<T>,
-    pub label_map: Option<Vec<String>>,
+    pub label_map: Option<HashMap<usize, String>>, // for regression type dataset, there is no need for label_map
 }
 
 pub trait TaskLabelType {}
@@ -96,7 +97,8 @@ impl<T: TaskLabelType + Copy> From<Vec<(&Vec<f32>, &T)>> for Dataset<T> {
 }
 
 impl<T:TaskLabelType + Copy> Dataset<T> {
-    pub fn new(features: Vec<Vec<f32>>, labels: Vec<T>, label_map: Option<Vec<String>>) -> Self {
+    pub fn new(features: Vec<Vec<f32>>, labels: Vec<T>, label_map: Option<HashMap<usize, String>>) -> Self {
+        assert_eq!(features.len(), labels.len());
         Self { features: features, labels: labels, label_map: label_map}
     }
 
@@ -110,6 +112,11 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         } else {
             0
         }
+    }
+
+    pub fn class_num(&self) -> usize {
+        assert!(self.label_map.is_some(), "dataset is not for classification!");
+        self.label_map.as_ref().unwrap().len()
     }
 
     pub fn get_feature_by_idx(&self, feature_idx: usize) -> Vec<&f32> {
