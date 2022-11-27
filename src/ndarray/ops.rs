@@ -4,13 +4,17 @@ fn universal_ops<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &NdArray, rhs: &NdArray,
     assert!(NdArray::can_broadcast(&lhs.shape, &rhs.shape), "{:?} cannot be broadcasted by {:?}", lhs.shape, rhs.shape);
     let mut temp = lhs.clone();
     temp.reshape(rhs.shape.iter().fold(vec![-1], |mut s, i| {s.push(*i as i32); s}));
-    for k in 0..temp.shape[0] {
-        temp[k].iter_mut().zip(rhs.data.iter()).for_each(&mut ops);
-    }
+
+    let base_sizes = NdArray::index_base_sizes(&temp.shape);
+
+    temp.data.chunks_exact_mut(base_sizes[0]).for_each(|same_as_rhs| {
+        same_as_rhs.iter_mut().zip(rhs.data.iter()).for_each(&mut ops);
+    });
+    
     temp.reshape(lhs.shape.clone());
+
     temp
 }
-
 
 impl PartialEq for NdArray {
     fn eq(&self, other: &Self) -> bool {
@@ -69,6 +73,34 @@ impl std::ops::Div<f32> for &NdArray {
 }
 
 // multiply-------------------------------
+/* some naive versions of Matrix Multiplication
+// naive version of multiply
+for (l, r) in left_iters.iter().zip(right_iters.iter().cycle()) { 
+    let lm = &lhs.data[l*left_matrix_ele_num..(l+1)*left_matrix_ele_num];
+    let rm = &rhs.data[r*right_matrix_ele_num..(r+1)*right_matrix_ele_num];
+    let t = &mut target.data[l*target_matrix_ele_num..(l+1)*target_matrix_ele_num];
+
+    for j in 0..right_matrix_shape[1] {
+        for li in 0..left_matrix_shape[0] {
+            let mut res = 0.0;
+            for i in 0..right_matrix_shape[0] {
+                res += lm[li * left_matrix_shape[1] + i] * rm[i * right_matrix_shape[1] + j];
+            }
+            t[li * target_matrix_shape[1] + j] = res;
+        }
+    }
+
+// reordering multiplication version
+    for i in 0..left_matrix_shape[0] {
+        for k in 0..left_matrix_shape[1] {
+            for j in 0..right_matrix_shape[1] {
+                t[i * target_matrix_shape[1] + j] += lm[i * left_matrix_shape[1] + k] * rm[k * right_matrix_shape[1] + j];
+            }
+        }
+    }
+}
+*/
+
 fn multiply(lhs: &NdArray, rhs: &NdArray) -> NdArray {
     // check if could multiply
     assert!(rhs.dim() >= 2 && lhs.dim() >= 2, "only supports 2d matrix multiplication, but got left = {:?} right = {:?}, please reshape first", lhs.shape, rhs.shape);
@@ -101,22 +133,22 @@ fn multiply(lhs: &NdArray, rhs: &NdArray) -> NdArray {
 
     // multiplication
 
-    for (l, r) in left_iters.iter().zip(right_iters.iter().cycle()) { 
-        let lm = &lhs.data[l*left_matrix_ele_num..(l+1)*left_matrix_ele_num];
-        let rm = &rhs.data[r*right_matrix_ele_num..(r+1)*right_matrix_ele_num];
-        let t = &mut target.data[l*target_matrix_ele_num..(l+1)*target_matrix_ele_num];
-
-        for j in 0..right_matrix_shape[1] {
-            for li in 0..left_matrix_shape[0] {
-                let mut res = 0.0;
-                for i in 0..right_matrix_shape[0] {
-                    res += lm[li * left_matrix_shape[1] + i] * rm[i * right_matrix_shape[1] + j];
-                }
-                t[li * target_matrix_shape[1] + j] = res;
-            }
-        }
-    }
-
+    lhs.data.chunks_exact(left_matrix_ele_num)
+    .zip(rhs.data.chunks_exact(right_matrix_ele_num).cycle())
+    .zip(target.data.chunks_exact_mut(target_matrix_ele_num))
+    .for_each(|((lm, rm), tm)| {
+        tm.chunks_exact_mut(target_matrix_shape[1])
+        .zip(lm.chunks_exact(left_matrix_shape[1]))
+        .for_each(|(tmi, lmi)|{
+            lmi.iter().zip(rm.chunks_exact(right_matrix_shape[1]))
+            .for_each(|(lmik, rmk)|{
+                tmi.iter_mut().zip(rmk.iter()).for_each(|(tmij, rmkj)| {
+                    *tmij += lmik * rmkj;
+                });
+            });
+        });
+    });
+    
     target
 }
 
@@ -264,6 +296,6 @@ mod test {
         let _ = &a * &b;
         let dur = start.elapsed();
         println!("execute {:?}", dur);
-        assert!(dur > Duration::from_secs_f32(600.0));
+        assert!(dur < Duration::from_secs_f32(50.0));
     }
 }
