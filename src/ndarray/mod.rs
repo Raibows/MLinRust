@@ -121,7 +121,7 @@ impl std::fmt::Display for NdArray {
         }
 
         recursive_print(&self.data[..], &self.shape, 0, f, 2)?;
-        write!(f, ", ndarray: {:?}", self.shape)?;
+        write!(f, ", NdArray::Shape: {:?}", self.shape)?;
         Ok(())
     }
 }
@@ -226,7 +226,9 @@ impl NdArray {
     pub fn squeeze(&mut self, dim: i32) {
         let udim = check_dim_is_legal(dim, self.dim());
         assert!(self.shape[udim] == 1, "the shape is {:?}, shape[dim={}] = {} != 1", self.shape, udim, self.shape[udim]);
-        self.shape.remove(udim);
+        if self.dim() > 1 {
+            self.shape.remove(udim);
+        }
     }
 
     pub fn destroy(self) -> (Vec<usize>, Vec<f32>) {
