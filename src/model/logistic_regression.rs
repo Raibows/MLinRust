@@ -1,4 +1,4 @@
-use super::Model;
+use super::{Model, utils::{NormType, gradient_clip}};
 use crate::ndarray::{NdArray, utils::{softmax, sum_ndarray, argmax}};
 
 
@@ -93,7 +93,12 @@ impl LogisticRegression {
         entropy_loss
     }
 
-    pub fn backward(&mut self, lr: f32) {
+    pub fn backward(&mut self, lr: f32, gradient_clip_by_norm: Option<NormType>) {
+        if gradient_clip_by_norm.is_some() {
+            gradient_clip(&mut self.grad_w, gradient_clip_by_norm.as_ref().unwrap());
+            gradient_clip(&mut self.grad_b, gradient_clip_by_norm.as_ref().unwrap());
+        }
+
         self.weight = &self.weight - &(&self.grad_w * lr);
         self.bias = &self.bias - &(&self.grad_b * lr);
         self.grad_w.clear();
@@ -118,7 +123,7 @@ mod test {
     use std::io::{stdout, Write};
 
     use crate::{
-        model::{Model, logistic_regression::Penalty}, 
+        model::{Model, logistic_regression::Penalty, utils::NormType}, 
         dataset::{Dataset, FromPathDataset, DatasetName, dataloader::Dataloader}, utils::evaluate, ndarray::utils::argmax};
     use super::{NdArray, LogisticRegression};
 
@@ -134,10 +139,10 @@ mod test {
         let mut model = LogisticRegression::new(batch_of_feature.shape[1], 2, None,  |i| i);
         let loss = model.one_step(&batch_of_feature, &label, None);
         println!("loss {:?} {} {}", loss, model.predict(&datas[0]) == label[0], model.predict(&datas[1]) == label[1]);
-        model.backward(lr);
+        model.backward(lr, None);
 
         let loss = model.one_step(&batch_of_feature, &label, Some(false));
-        model.backward(lr);
+        model.backward(lr, None);
         println!("loss {:?} {} {}", loss, model.predict(&datas[0]) == label[0], model.predict(&datas[1]) == label[1]);
     }
 
@@ -158,12 +163,12 @@ mod test {
         for ep in 0..EPOCH {
             let mut losses = vec![];
             let lr = match ep {
-                i if i < 1000 => 1e-5,
-                _ => 2e-5,
+                i if i < 200 => 1e-3,
+                _ => 2e-3,
             };
             for (feature, label) in &mut train_dataloader {
                 let loss: f32 = model.one_step(&feature, &label, None).iter().sum::<f32>() / feature.shape[0] as f32;
-                model.backward(lr);
+                model.backward(lr, Some(NormType::L2(1.0)));
                 losses.push(loss);
             }
             let (_, acc) = evaluate(&test_dataset, &model);
@@ -175,7 +180,7 @@ mod test {
         let acc = best_acc.iter().fold(0.0, |s, i| f32::max(s, *i));
         let best_ep = argmax(&NdArray::new(best_acc), 0);
         println!("\nbest acc = {} ep {}", acc, best_ep[0][0]);
-        assert!(acc > 0.65);
+        assert!(acc > 0.75); // gradient clip greatly helps it
 
         Ok(())
 

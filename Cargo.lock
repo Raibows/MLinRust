@@ -26,7 +26,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7fcc620a3bff7cdd7a365be3376c97191aeaccc2a603e600951e452615bf89"
 
 [[package]]
-name = "ml_in_rust"
+name = "mlinrust"
 version = "0.1.0"
 dependencies = [
  "rand",
