@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::utils::{ImputeType, impute_lost_values};
 
-pub fn process_tianchi_car_price_regression_dataset(data: String) -> (Vec<Vec<f32>>, Vec<f32>, Option<HashMap<usize, String>>) {
+pub fn process_tianchi_car_price_regression_dataset(data: String, fill_missing_value_by: ImputeType) -> (Vec<Vec<f32>>, Vec<f32>, Option<HashMap<usize, String>>) {
     let lines: Vec<&str> = data.split("\n").collect();
     let mut lines = lines.into_iter();
     let header = lines.next().unwrap().split(" ").enumerate().find(|(_, item)| *item == "price").unwrap().0;
@@ -20,7 +20,7 @@ pub fn process_tianchi_car_price_regression_dataset(data: String) -> (Vec<Vec<f3
         labels.push(label);
     }
     
-    (impute_lost_values(features, ImputeType::Mean), labels, None)
+    (impute_lost_values(features, fill_missing_value_by), labels, None)
 }
 
 
@@ -54,7 +54,7 @@ mod test {
     #[test]
     fn test_process() {
         let data = Dataset::<f32>::read_data_from_file(".data/TianchiCarPriceRegression/train_5w.csv").unwrap();
-        let (feature, _label, label_map) = process_tianchi_car_price_regression_dataset(data);
+        let (feature, _label, label_map) = process_tianchi_car_price_regression_dataset(data, ImputeType::Mean);
         assert_eq!(feature.len(), 50_000);
         assert_eq!(feature[0].len(), 39);
         assert_eq!(label_map, None);

@@ -1,19 +1,13 @@
-mod utils;
-mod dataset;
-mod model;
-mod ndarray;
-
-use dataset::{Dataset, FromPathDataset, DatasetName};
-use model::decision_tree::{DecisionTree, InfoGains};
-use utils::evaluate;
-
+use mlinrust::dataset::{Dataset, FromPathDataset, DatasetName};
+use mlinrust::model::decision_tree::{DecisionTree, InfoGains};
+use mlinrust::utils::evaluate;
 
 fn main() {
     println!("Hello, world!");
 
     let path = ".data/MobilePhonePricePredict/train.csv";
 
-    let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset);
+    let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
     let mut temp =  dataset.split_dataset(vec![0.8, 0.2]);
     let (train_dataset, test_dataset) = (temp.remove(0), temp.remove(0));
 

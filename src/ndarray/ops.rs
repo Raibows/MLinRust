@@ -126,13 +126,7 @@ fn multiply(lhs: &NdArray, rhs: &NdArray) -> NdArray {
     let right_matrix_ele_num = NdArray::total_num(&right_matrix_shape);
     let target_matrix_ele_num = NdArray::total_num(&target_matrix_shape);
 
-    let left_iters: Vec<usize> = (0..NdArray::total_num(&lhs.shape) / left_matrix_ele_num).collect();
-    let right_iters: Vec<usize> = (0..NdArray::total_num(&rhs.shape) / right_matrix_ele_num).collect();
-    let target_iters: Vec<usize> = (0..NdArray::total_num(&target.shape) / target_matrix_ele_num).collect();
-    assert!(left_iters.len() == target_iters.len());
-
     // multiplication
-
     lhs.data.chunks_exact(left_matrix_ele_num)
     .zip(rhs.data.chunks_exact(right_matrix_ele_num).cycle())
     .zip(target.data.chunks_exact_mut(target_matrix_ele_num))
@@ -285,11 +279,11 @@ mod test {
     #[test]
     fn test_multiply_profile() {
         use std::time::{Instant, Duration};
-        const psize: usize = 512 * 512 * 512;
-        let mut a = NdArray::new((0..psize).map(|i| i as f32).collect::<Vec<f32>>());
+        const PSIZE: usize = 512 * 512 * 512;
+        let mut a = NdArray::new((0..PSIZE).map(|i| i as f32).collect::<Vec<f32>>());
         a.reshape(vec![8, 128, 256, 512]);
 
-        let mut b = NdArray::new((0..psize).map(|i| i as f32).collect::<Vec<f32>>());
+        let mut b = NdArray::new((0..PSIZE).map(|i| i as f32).collect::<Vec<f32>>());
         b.reshape(vec![128, 512, 2048]);
 
         let start = Instant::now();

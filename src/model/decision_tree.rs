@@ -217,7 +217,7 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::dataset::{DatasetName, FromPathDataset, self};
+    use crate::dataset::{DatasetName, FromPathDataset};
     use crate::utils::{evaluate, evaluate_regression};
     use super::{Dataset};
     use super::{DecisionTree, InfoGains};
@@ -243,7 +243,7 @@ mod test {
     #[test]
     fn test_iris_dataset() {
         let path = ".data/IRIS.csv";
-        let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset);
+        let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset, None);
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
@@ -261,7 +261,7 @@ mod test {
     #[test]
     fn test_mobile_phone_price_dataset() {
         let path = ".data/MobilePhonePricePredict/train.csv";
-        let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset);
+        let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
@@ -279,7 +279,7 @@ mod test {
     #[test]
     fn test_car_price_regression_dataset() {
         let path = ".data/TianchiCarPriceRegression/train_5w.csv";
-        let dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset);
+        let dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset, None);
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());

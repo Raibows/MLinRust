@@ -11,7 +11,6 @@ pub struct LogisticRegression {
     weight: NdArray,
     bias: NdArray,
     feature_size: usize,
-    class_num: usize,
     grad_w: NdArray,
     grad_b: NdArray,
     penalty: Option<Penalty>,
@@ -24,7 +23,7 @@ impl LogisticRegression {
         let weight = vec![vec![0.0f32; feature_size]; class_num];
         let bias = NdArray::new(vec![class_num]);
         let weight = NdArray::new(weight_init_fn(weight));
-        Self { weight: weight, bias: bias, feature_size: feature_size, class_num: class_num, grad_w: NdArray::new(vec![class_num, feature_size]), grad_b: NdArray::new(vec![class_num]), penalty: penalty}
+        Self { weight: weight, bias: bias, feature_size: feature_size, grad_w: NdArray::new(vec![class_num, feature_size]), grad_b: NdArray::new(vec![class_num]), penalty: penalty}
     }
 
     pub fn forward(&self, input: &NdArray) -> NdArray {
@@ -143,9 +142,9 @@ mod test {
     }
 
     #[test]
-    fn test_with_mobile_phone_price_dataset() {
+    fn test_with_mobile_phone_price_dataset() -> std::io::Result<()> {
         let path = ".data/MobilePhonePricePredict/train.csv";
-        let mut dataset: Dataset<usize> = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset);
+        let mut dataset: Dataset<usize> = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
         dataset.shuffle(0);
         let mut res = dataset.split_dataset(vec![0.8, 0.2]);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
@@ -171,12 +170,14 @@ mod test {
             best_acc.push(acc);
             let width = ">".repeat(ep * 100 / EPOCH);
             print!("\r{:-<100}\t{:.3}\t{:.3}", width, losses.iter().sum::<f32>() / losses.len() as f32, acc);
-            stdout().flush();
+            stdout().flush()?;
         }
         let acc = best_acc.iter().fold(0.0, |s, i| f32::max(s, *i));
         let best_ep = argmax(&NdArray::new(best_acc), 0);
         println!("\nbest acc = {} ep {}", acc, best_ep[0][0]);
         assert!(acc > 0.65);
+
+        Ok(())
 
     }
 }

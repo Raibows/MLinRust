@@ -27,7 +27,7 @@ impl TaskLabelType for usize {}
 
 pub trait FromPathDataset {
     type Output;
-    fn from_name(path: &str, name: DatasetName) -> Self::Output;
+    fn from_name(path: &str, name: DatasetName, fill_missing_value: Option<utils::ImputeType>) -> Self::Output;
 
     fn read_data_from_file(path: &str) -> std::io::Result<String> {
         let mut buf = String::with_capacity(1024 * 8);
@@ -38,7 +38,7 @@ pub trait FromPathDataset {
 
 impl FromPathDataset for Dataset<usize> {
     type Output = Dataset<usize>;
-    fn from_name(path: &str, name: DatasetName) -> Self::Output {
+    fn from_name(path: &str, name: DatasetName, _fill_missing_value: Option<utils::ImputeType>) -> Self::Output {
         if let Ok(data) = Self::read_data_from_file(path) {
             match name {
                 DatasetName::IrisDataset => {
@@ -60,11 +60,11 @@ impl FromPathDataset for Dataset<usize> {
 impl FromPathDataset for Dataset<f32> {
     type Output = Dataset<f32>;
 
-    fn from_name(path: &str, name: DatasetName) -> Self::Output {
+    fn from_name(path: &str, name: DatasetName, fill_missing_value: Option<utils::ImputeType>) -> Self::Output {
         if let Ok(data) = Self::read_data_from_file(path) {
             match name {
                 DatasetName::CarPriceRegressionDataset => {
-                    let (features, labels, label_map) = car_price_dataset::process_tianchi_car_price_regression_dataset(data);
+                    let (features, labels, label_map) = car_price_dataset::process_tianchi_car_price_regression_dataset(data, fill_missing_value.unwrap_or(utils::ImputeType::Mean));
                     Dataset::new(features, labels, label_map)
                 },
                 _ => unimplemented!("dataset type {:?} is not implemented for regression<f32>", name),
