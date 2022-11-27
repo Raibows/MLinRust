@@ -1,8 +1,7 @@
-pub mod utils;
-pub mod dataset;
-pub mod model;
-pub mod matrix;
-pub mod ndarray;
+mod utils;
+mod dataset;
+mod model;
+mod ndarray;
 
 use dataset::{Dataset, FromPathDataset, DatasetName};
 use model::decision_tree::{DecisionTree, InfoGains};
