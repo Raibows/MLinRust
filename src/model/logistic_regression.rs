@@ -1,11 +1,6 @@
-use super::{Model, utils::{NormType, gradient_clip}};
-use crate::ndarray::{NdArray, utils::{softmax, sum_ndarray, argmax}};
+use super::{Model, utils::{NormType, Penalty, gradient_clip, calculate_penalty_grad}};
+use crate::{ndarray::{NdArray, utils::{softmax, sum_ndarray, argmax}}, model::utils::calculate_penalty_value};
 
-
-pub enum Penalty {
-    LassoL1(f32),
-    RidgeL2(f32),
-}
 
 pub struct LogisticRegression {
     weight: NdArray,
@@ -43,15 +38,8 @@ impl LogisticRegression {
         });
 
         let mut temp_grad_w = &predicts.permute(vec![1, 0]) * feature;
-        match self.penalty {
-            None => (),
-            Some(Penalty::LassoL1(ratio)) => {
-                temp_grad_w.data_as_vector().iter_mut().zip(self.weight.data_as_vector().iter()).for_each(|(a, b)| *a += b / f32::max(b.abs(), 1e-6) * ratio);
-            },
-            Some(Penalty::RidgeL2(ratio)) => {
-                let t = 0.5 * 1.0 / f32::max(1e-6, self.weight.data_as_vector().iter().fold(0.0, |s, i| s + i * i).sqrt());
-                temp_grad_w.data_as_vector().iter_mut().zip(self.weight.data_as_vector().iter()).for_each(|(a, b)| *a += b / f32::max(b.abs(), 1e-6) * 2.0 * ratio * t)
-            },
+        if self.penalty.is_some() {
+            temp_grad_w = &temp_grad_w + &calculate_penalty_grad(&temp_grad_w, self.penalty.unwrap());
         }
 
         temp_grad_w = &temp_grad_w / feature.shape[0] as f32;
@@ -72,18 +60,13 @@ impl LogisticRegression {
         // println!("softmax {}", predicts);
 
         // loss
-        let mut entropy_loss: Vec<f32> = label.iter().enumerate().map(|(i, l)| - f32::max(predicts[i][*l], 1e-9).ln()).collect();
-        match self.penalty {
-            None => (),
-            Some(Penalty::LassoL1(ratio)) => {
-                let p = ratio * self.weight.data_as_vector().iter().fold(0.0, |s, i| s + i.abs());
-                entropy_loss.iter_mut().for_each(|i| *i += p);
-            },
-            Some(Penalty::RidgeL2(ratio)) => {
-                let p = ratio * (self.weight.data_as_vector().iter().fold(0.0, |s, i| s + i * i)).sqrt();
-                entropy_loss.iter_mut().for_each(|i| *i += p);
-            },
+        let penalty_v = if self.penalty.is_some() {
+            calculate_penalty_value(&self.weight, self.penalty.unwrap())
+        } else {
+            0.0
         };
+        let entropy_loss: Vec<f32> = label.iter().enumerate().map(|(i, l)| - f32::max(predicts[i][*l], 1e-9).ln() + penalty_v).collect();
+        
 
         // calculate gradient
         if required_grad {
@@ -123,7 +106,7 @@ mod test {
     use std::io::{stdout, Write};
 
     use crate::{
-        model::{Model, logistic_regression::Penalty, utils::NormType}, 
+        model::{Model, utils::Penalty, utils::NormType}, 
         dataset::{Dataset, FromPathDataset, DatasetName, dataloader::Dataloader}, utils::evaluate, ndarray::utils::argmax};
     use super::{NdArray, LogisticRegression};
 
