@@ -21,6 +21,37 @@ pub struct Dataset<T: TaskLabelType> {
     pub label_map: Option<HashMap<usize, String>>, // for regression type dataset, there is no need for label_map
 }
 
+pub struct DatasetIterator<'a, T: TaskLabelType + Copy> {
+    iter_idx: usize,
+    dataset: &'a Dataset<T>,
+}
+
+impl<'a, T: TaskLabelType + Copy> Iterator for DatasetIterator<'a, T> {
+    type Item = (&'a Vec<f32>, T);
+    fn next(&mut self) -> Option<Self::Item> {
+        let idx = self.iter_idx;
+        if idx >= self.dataset.len() {
+            None
+        } else {
+            self.iter_idx += 1;
+            let item = self.dataset.get(idx);
+            Some((item.0, *item.1))
+        }
+    }
+}
+
+impl<'a, T: TaskLabelType + Copy> IntoIterator for &'a Dataset<T> {
+    type Item = <DatasetIterator<'a, T> as Iterator>::Item;
+    type IntoIter = DatasetIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        DatasetIterator {
+            dataset: self,
+            iter_idx: 0
+        }
+    }
+}
+
+
 pub trait TaskLabelType {}
 impl TaskLabelType for f32 {}
 impl TaskLabelType for usize {}
@@ -184,5 +215,22 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
             res.last_mut().unwrap().labels.push(label);
         }
         res
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Dataset, DatasetName, FromPathDataset};
+
+    #[test]
+    fn test_dataset_iter() {
+        let path = ".data/IRIS.csv";
+        let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset, None);
+        for (x, y) in &dataset {
+            println!("{:?} {}", x, y);
+        }
+        for (x, y) in &dataset {
+            println!("{:?} {}", x, y);
+        }
     }
 }
