@@ -4,6 +4,7 @@ pub mod logistic_regression;
 pub mod utils;
 pub mod linear_regression;
 pub mod naive_bayes;
+pub mod svm;
 
 pub trait Model<T: TaskLabelType> {
     // todo implement generics for feature to accept batch or ndarray etc.
