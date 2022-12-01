@@ -15,6 +15,7 @@ pub enum DatasetName {
     CarPriceRegressionDataset,
 }
 
+#[derive(Clone)]
 pub struct Dataset<T: TaskLabelType> {
     pub features: Vec<Vec<f32>>,
     pub labels: Vec<T>,

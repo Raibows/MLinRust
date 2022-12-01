@@ -27,7 +27,7 @@ impl LinearRegression {
         // input: [bsz, feature_size]
         // bias: [1]
         // return: [bsz, 1]
-        &(input * &self.weight.permute(vec![1, 0])) + &self.bias
+        input * self.weight.permute(vec![1, 0]) + &self.bias
     }
 
     fn calculate_gradient(&mut self, feature: &NdArray, label: &Vec<f32>, mut predicts: NdArray) {
@@ -35,13 +35,13 @@ impl LinearRegression {
         label.iter().zip(predicts.data_as_mut_vector().iter_mut()).for_each(|(l, p)| {
             *p = 2.0 * (*p - *l);
         });
-        let mut temp_grad_w = &predicts.permute(vec![1, 0]) * feature;
-        temp_grad_w = &temp_grad_w / feature.shape[0] as f32;
+        let mut temp_grad_w = predicts.permute(vec![1, 0]) * feature;
+        temp_grad_w = temp_grad_w / feature.shape[0] as f32;
 
-        let temp_grad_b = &sum_ndarray(&predicts, 0) / feature.shape[0] as f32;
+        let temp_grad_b = sum_ndarray(&predicts, 0) / feature.shape[0] as f32;
 
-        self.grad_w = &self.grad_w + &temp_grad_w;
-        self.grad_b = &self.grad_b + &temp_grad_b;
+        self.grad_w = &self.grad_w + temp_grad_w;
+        self.grad_b = &self.grad_b + temp_grad_b;
     }
 
     pub fn one_step(&mut self, feature: &NdArray, label: &Vec<f32>, required_grad: Option<bool>) -> Vec<f32> {
@@ -74,8 +74,8 @@ impl LinearRegression {
             gradient_clip(&mut self.grad_b, gradient_clip_by_norm.as_ref().unwrap());
         }
 
-        self.weight = &self.weight - &(&self.grad_w * lr);
-        self.bias = &self.bias - &(&self.grad_b * lr);
+        self.weight = &self.weight - &self.grad_w * lr;
+        self.bias = &self.bias - &self.grad_b * lr;
         self.grad_w.clear();
         self.grad_b.clear();
     }

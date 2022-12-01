@@ -49,6 +49,7 @@ impl std::ops::IndexMut<usize> for NdArray {
     }
 }
 
+// &a + &b
 impl std::ops::Add<&NdArray> for &NdArray {
     type Output = NdArray;
     fn add(self, rhs: &NdArray) -> Self::Output {
@@ -56,6 +57,31 @@ impl std::ops::Add<&NdArray> for &NdArray {
     }
 }
 
+// a + &b
+impl std::ops::Add<&NdArray> for NdArray {
+    type Output = NdArray;
+    fn add(self, rhs: &NdArray) -> Self::Output {
+        universal_ops(&self, rhs, |(a, b)| *a += b) 
+    }
+}
+
+// a + b
+impl std::ops::Add<NdArray> for NdArray {
+    type Output = NdArray;
+    fn add(self, rhs: NdArray) -> Self::Output {
+        universal_ops(&self, &rhs, |(a, b)| *a += b) 
+    }
+}
+
+// &a + b
+impl std::ops::Add<NdArray> for &NdArray {
+    type Output = NdArray;
+    fn add(self, rhs: NdArray) -> Self::Output {
+        universal_ops(self, &rhs, |(a, b)| *a += b) 
+    }
+}
+
+// &a - &b
 impl std::ops::Sub<&NdArray> for &NdArray {
     type Output = NdArray;
     fn sub(self, rhs: &NdArray) -> Self::Output {
@@ -63,12 +89,47 @@ impl std::ops::Sub<&NdArray> for &NdArray {
     }
 }
 
+// a - &b
+impl std::ops::Sub<&NdArray> for NdArray {
+    type Output = NdArray;
+    fn sub(self, rhs: &NdArray) -> Self::Output {
+        universal_ops(&self, rhs, |(a, b)| *a -= b) 
+    }
+}
+
+// &a - b
+impl std::ops::Sub<NdArray> for &NdArray {
+    type Output = NdArray;
+    fn sub(self, rhs: NdArray) -> Self::Output {
+        universal_ops(self, &rhs, |(a, b)| *a -= b) 
+    }
+}
+
+// a - b
+impl std::ops::Sub<NdArray> for NdArray {
+    type Output = NdArray;
+    fn sub(self, rhs: NdArray) -> Self::Output {
+        universal_ops(&self, &rhs, |(a, b)| *a -= b) 
+    }
+}
+
+// &a / b
 impl std::ops::Div<f32> for &NdArray {
     type Output = NdArray;
     fn div(self, rhs: f32) -> Self::Output {
         // avoid overflow
         let rhs = f32::max(1e-6, rhs); 
         (1.0 / rhs).multiply(self)
+    }
+}
+
+// a / b
+impl std::ops::Div<f32> for NdArray {
+    type Output = NdArray;
+    fn div(self, rhs: f32) -> Self::Output {
+        // avoid overflow
+        let rhs = f32::max(1e-6, rhs); 
+        (1.0 / rhs).multiply(&self)
     }
 }
 
@@ -156,6 +217,12 @@ impl NdArrayMultiplyTrait for &NdArray {
     }
 }
 
+impl NdArrayMultiplyTrait for NdArray {
+    fn multiply(self, lhs: &NdArray) -> NdArray {
+        multiply(lhs, &self)
+    }
+}
+
 impl NdArrayMultiplyTrait for &mut NdArray {
     fn multiply(self, lhs: &NdArray) -> NdArray {
         multiply(lhs, self)
@@ -170,10 +237,19 @@ impl NdArrayMultiplyTrait for f32 {
     }
 }
 
+// &a * (b | &b)
 impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for &NdArray {
     type Output = NdArray;
     fn mul(self, rhs: T) -> Self::Output {
         rhs.multiply(self)
+    }
+}
+
+// a * (b | &b)
+impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for NdArray {
+    type Output = NdArray;
+    fn mul(self, rhs: T) -> Self::Output {
+        rhs.multiply(&self)
     }
 }
 // multiply-------------------------------
@@ -218,7 +294,7 @@ mod test {
         let k = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let b = NdArray::new(k);
 
-        let c = &a - &b;
+        let c = a - b;
         let cc = NdArray::new(vec![0.0; 6]);
         assert_eq!(cc, c);
     }
@@ -226,7 +302,7 @@ mod test {
     #[test]
     fn test_ops_multiply_by_float() {
         let a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let c = &a * 2.0;
+        let c = a * 2.0;
         let cc = NdArray::new(vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
         assert_eq!(c, cc)
     }
@@ -239,7 +315,7 @@ mod test {
         let mut b = NdArray::new(vec![-1.0, -2.0, -3.0]);
         b.reshape(vec![3, 1]);
         println!("a = {:?}\nb = {:?}", a, b);
-        let c =  &a * &b;
+        let c =  a * b;
         println!("a * b = {:?}", c);
         let mut cc = NdArray::new(vec![-14.0, -32.0]);
         cc.reshape(vec![2, 1]);
@@ -254,7 +330,7 @@ mod test {
         let mut b = NdArray::new(vec![0.0, -1.0]);
         b.reshape(vec![2, 1]);
         println!("a = {:?}\nb = {:?}", a, b);
-        let c = &a * &b;
+        let c = a * b;
         println!("a * b = {:?}", c);
         let mut cc = NdArray::new(vec![-1.0, -3.0, -5.0, -7.0, -9.0, -11.0]);
         cc.reshape(vec![2, 3, 1]);
@@ -269,7 +345,7 @@ mod test {
         let mut b = NdArray::new(vec![0.0, -1.0, 1.0, 0.0]);
         b.reshape(vec![2, 2, 1]);
         println!("a = {:?}\nb = {:?}", a, b);
-        let c = &a * &b;
+        let c = a * b;
         println!("a * b = {:?}", c);
         let mut cc = NdArray::new(vec![-1.0, -3.0, -5.0, 6.0, 8.0, 10.0]);
         cc.reshape(vec![1, 2, 3, 1]);
@@ -287,7 +363,7 @@ mod test {
         b.reshape(vec![128, 512, 2048]);
 
         let start = Instant::now();
-        let _ = &a * &b;
+        let _ = a * b;
         let dur = start.elapsed();
         println!("execute {:?}", dur);
         assert!(dur < Duration::from_secs_f32(50.0));

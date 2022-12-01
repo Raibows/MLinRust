@@ -28,7 +28,7 @@ impl LogisticRegression {
         // input: [bsz, feature_size]
         // bias: [class_num]
         // return: [bsz, class_num] logits
-        &(input * &self.weight.permute(vec![1, 0])) + &self.bias
+        input * self.weight.permute(vec![1, 0]) + &self.bias
     }
 
 
@@ -37,16 +37,16 @@ impl LogisticRegression {
             predicts[i][*l] -= 1.0;
         });
 
-        let mut temp_grad_w = &predicts.permute(vec![1, 0]) * feature;
+        let mut temp_grad_w = predicts.permute(vec![1, 0]) * feature;
         if self.penalty.is_some() {
-            temp_grad_w = &temp_grad_w + &calculate_penalty_grad(&temp_grad_w, self.penalty.unwrap());
+            temp_grad_w = &temp_grad_w + calculate_penalty_grad(&temp_grad_w, self.penalty.unwrap());
         }
 
-        temp_grad_w = &temp_grad_w / feature.shape[0] as f32;
-        self.grad_w = &self.grad_w + &temp_grad_w;
+        temp_grad_w = temp_grad_w / feature.shape[0] as f32;
+        self.grad_w = &self.grad_w + temp_grad_w;
         
-        let temp_grad_b = &sum_ndarray(&predicts, 0) / feature.shape[0] as f32;
-        self.grad_b = &self.grad_b + &temp_grad_b;
+        let temp_grad_b = sum_ndarray(&predicts, 0) / feature.shape[0] as f32;
+        self.grad_b = &self.grad_b + temp_grad_b;
 
     }
 
@@ -82,8 +82,8 @@ impl LogisticRegression {
             gradient_clip(&mut self.grad_b, gradient_clip_by_norm.as_ref().unwrap());
         }
 
-        self.weight = &self.weight - &(&self.grad_w * lr);
-        self.bias = &self.bias - &(&self.grad_b * lr);
+        self.weight = &self.weight - &self.grad_w * lr;
+        self.bias = &self.bias - &self.grad_b * lr;
         self.grad_w.clear();
         self.grad_b.clear();
     }
