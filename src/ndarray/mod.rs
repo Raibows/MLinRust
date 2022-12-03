@@ -135,6 +135,12 @@ impl std::fmt::Display for NdArray {
     }
 }
 
+impl Default for NdArray {
+    fn default() -> Self {
+        Self { shape: vec![], data: vec![] }
+    }
+}
+
 impl NdArray {
     pub fn new<T: NdArrayNewTrait>(arg: T) -> Self {
         arg.new()
