@@ -1,19 +1,25 @@
 use super::NdArray;
 
-pub fn universal_ops<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &NdArray, rhs: &NdArray, mut ops: F) -> NdArray {
+pub fn universal_ops<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &NdArray, rhs: &NdArray, ops: F) -> NdArray {
     assert!(NdArray::can_broadcast(&lhs.shape, &rhs.shape), "{:?} cannot be broadcasted by {:?}", lhs.shape, rhs.shape);
     let mut temp = lhs.clone();
-    temp.reshape(rhs.shape.iter().fold(vec![-1], |mut s, i| {s.push(*i as i32); s}));
+    universal_ops_inplace(&mut temp, rhs, ops);
+    temp
+}
 
-    let base_sizes = NdArray::index_base_sizes(&temp.shape);
+pub fn universal_ops_inplace<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &mut NdArray, rhs: &NdArray, mut ops: F) {
+    assert!(NdArray::can_broadcast(&lhs.shape, &rhs.shape), "{:?} cannot be broadcasted by {:?}", lhs.shape, rhs.shape);
+    let original_shape = lhs.shape.clone();
 
-    temp.data.chunks_exact_mut(base_sizes[0]).for_each(|same_as_rhs| {
+    lhs.reshape(rhs.shape.iter().fold(vec![-1], |mut s, i| {s.push(*i as i32); s}));
+
+    let base_sizes = NdArray::index_base_sizes(&lhs.shape);
+
+    lhs.data.chunks_exact_mut(base_sizes[0]).for_each(|same_as_rhs| {
         same_as_rhs.iter_mut().zip(rhs.data.iter()).for_each(&mut ops);
     });
     
-    temp.reshape(lhs.shape.clone());
-
-    temp
+    lhs.reshape(original_shape);
 }
 
 impl PartialEq for NdArray {
@@ -46,6 +52,48 @@ impl std::ops::IndexMut<usize> for NdArray {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let (s, e) = self.shape.iter().skip(1).fold((index, index+1), |s, i| (s.0*i, s.1 * i));
         &mut self.data[s..e]
+    }
+}
+
+// a += b
+impl std::ops::AddAssign<NdArray> for NdArray {
+    fn add_assign(&mut self, rhs: NdArray) {
+        universal_ops_inplace(self, &rhs, |(a, b)| *a += b);
+    }
+}
+
+// a += &b
+impl std::ops::AddAssign<&NdArray> for NdArray {
+    fn add_assign(&mut self, rhs: &NdArray) {
+        universal_ops_inplace(self, rhs, |(a, b)| *a += b);
+    }
+}
+
+// a += f32
+impl std::ops::AddAssign<f32> for NdArray {
+    fn add_assign(&mut self, rhs: f32) {
+        self.data_as_mut_vector().iter_mut().for_each(|i| *i += rhs);
+    }
+}
+
+// a -= b
+impl std::ops::SubAssign<NdArray> for NdArray {
+    fn sub_assign(&mut self, rhs: NdArray) {
+        universal_ops_inplace(self, &rhs, |(a, b)| *a -= b);
+    }
+}
+
+// a -= &b
+impl std::ops::SubAssign<&NdArray> for NdArray {
+    fn sub_assign(&mut self, rhs: &NdArray) {
+        universal_ops_inplace(self, rhs, |(a, b)| *a -= b);
+    }
+}
+
+// a -= f32
+impl std::ops::SubAssign<f32> for NdArray {
+    fn sub_assign(&mut self, rhs: f32) {
+        self.data_as_mut_vector().iter_mut().for_each(|i| *i -= rhs);
     }
 }
 
@@ -113,7 +161,7 @@ impl std::ops::Sub<NdArray> for NdArray {
     }
 }
 
-// &a / b
+// &a / f32
 impl std::ops::Div<f32> for &NdArray {
     type Output = NdArray;
     fn div(self, rhs: f32) -> Self::Output {
@@ -123,7 +171,7 @@ impl std::ops::Div<f32> for &NdArray {
     }
 }
 
-// a / b
+// a / f32
 impl std::ops::Div<f32> for NdArray {
     type Output = NdArray;
     fn div(self, rhs: f32) -> Self::Output {
@@ -132,6 +180,15 @@ impl std::ops::Div<f32> for NdArray {
         (1.0 / rhs).multiply(&self)
     }
 }
+
+// a /= f32
+impl std::ops::DivAssign<f32> for NdArray {
+    fn div_assign(&mut self, rhs: f32) {
+        let rhs = 1.0 / f32::max(1e-6, rhs);
+        *self *= rhs;
+    }
+}
+
 
 // multiply-------------------------------
 /* some naive versions of Matrix Multiplication
@@ -252,6 +309,13 @@ impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for NdArray {
         rhs.multiply(&self)
     }
 }
+
+// a *= f32, only f32 will not change the shape
+impl std::ops::MulAssign<f32> for NdArray {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.data.iter_mut().for_each(|i| *i *= rhs);
+    }
+}
 // multiply-------------------------------
 
 #[cfg(test)]
@@ -367,5 +431,24 @@ mod test {
         let dur = start.elapsed();
         println!("execute {:?}", dur);
         assert!(dur < Duration::from_secs_f32(50.0));
+    }
+
+    #[test]
+    fn test_ops_inplace() {
+        let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let mut k = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        k.reverse();
+        let b = NdArray::new(k);
+        a += &b;
+        assert_eq!(a, NdArray::new(vec![7.0;6]));
+
+        a -= b;
+        assert_eq!(a, NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]));
+
+        a *= 3.0;
+        assert_eq!(a, NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]) * 3.0);
+        
+        a /= 3.0;
+        assert_eq!(a, NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]));
     }
 }
