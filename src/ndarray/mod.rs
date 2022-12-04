@@ -1,6 +1,6 @@
-use std::ops::Deref;
 
 use self::utils::check_dim_is_legal;
+use self::ops::universal_ops;
 
 mod ops;
 pub mod utils;
@@ -57,7 +57,7 @@ impl ReshapeTrait for Vec<usize> {
 impl ReshapeTrait for &Vec<usize> {
     fn reshape(&self, source: &Vec<usize>) -> Vec<usize> {
         assert!(NdArray::total_num(source) == NdArray::total_num(self));
-        self.deref().clone()
+        (*self).clone()
     }
 }
 
@@ -256,6 +256,10 @@ impl NdArray {
 
     pub fn data_as_vector(&self) -> &[f32] {
         &self.data
+    }
+
+    pub fn point_multiply(&self, rhs: &NdArray) -> NdArray {
+        universal_ops(self, rhs, |(a, b)| *a *= b)
     }
 }
 

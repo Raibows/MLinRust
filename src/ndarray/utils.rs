@@ -123,20 +123,63 @@ pub fn argmax(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &get_arg_by_max)
 }
 
+/// 1 / (1 + exp(-x))
+/// 
+/// \[0.0, 1.0\]
+pub fn sigmoid(x: &NdArray) -> NdArray {
+    let mut out = x.clone();
+    out.data_as_mut_vector().iter_mut().for_each(|i| {
+        // to avoid overflow
+        if *i < 0.0 {
+            // exp(x) / (1 + exp(x))
+            let t = i.exp();
+            *i = t / (1.0 + t);
+        } else {
+            // 1 / (1 + exp(-x))
+            *i = 1.0 / (1.0 + (-*i).exp());
+        }
+    });
+    out
+}
+
+/// 2sigmoid(2x) - 1
+/// 
+/// \[-1.0, 1.0\]
+pub fn tanh(x: &NdArray) -> NdArray {
+    let mut out = x * 2.0;
+    out.data_as_mut_vector().iter_mut().for_each(|i| {
+        if *i < 0.0 {
+            let t = i.exp();
+            *i = t / (1.0 + t);
+        } else {
+            *i = 1.0 / (1.0 + (-*i).exp());
+        } // now out = sigmoid(2x)
+        // tanh(x) = 2 x sigmoid(2x) - 1
+        *i = 2.0 * *i - 1.0;
+    });
+    out
+}
+
+/// max(0.0, x)
+/// 
+/// \[0.0, +∞\]
+pub fn relu(x: &NdArray) -> NdArray {
+    let mut out = x.clone();
+    out.data_as_mut_vector().iter_mut().for_each(|i| *i = f32::max(*i, 0.0));
+    out
+}
+
 #[cfg(test)]
 mod test {
-    use super::{softmax, sum_ndarray, argmax};
+    use super::{softmax, sum_ndarray, argmax, relu, sigmoid, tanh};
     use super::NdArray;
 
     #[test]
-    fn test_something() {
-        let x: Vec<usize> = (0..10).collect();
-        // x.chunks_exact(4).step_by(4).for_each(|i| {
-        //     println!("{:?}", i);
-        // });
-        x.windows(4).skip(6).for_each(|i| {
-            println!("{:?}", i);
-        });
+    fn test_activation_functions() {
+        let x = NdArray::new(vec![1.0, 232.0, -1.0, -22.0, 0.0]);
+        println!("{}", relu(&x));
+        println!("{}", sigmoid(&x));
+        println!("{}", tanh(&x));
     }
 
     #[test]
@@ -185,6 +228,5 @@ mod test {
           ]);
         println!("{}", x);
         assert_eq!(xx, x);
-
     }
 }
