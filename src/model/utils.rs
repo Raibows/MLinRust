@@ -1,6 +1,6 @@
 use crate::ndarray::NdArray;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Penalty {
     LassoL1(f32),
     RidgeL2(f32),
