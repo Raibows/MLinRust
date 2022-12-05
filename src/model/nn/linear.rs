@@ -1,6 +1,6 @@
 use crate::{ndarray::{NdArray}, model::utils::{Penalty, NormType, calculate_penalty_grad, gradient_clip}};
 
-use super::NNBackPropagation;
+use super::{NNBackPropagation};
 
 
 /// Linear is a nn module, similar to torch.nn.Linear
@@ -30,14 +30,21 @@ impl NNBackPropagation for Linear {
         outputs
     }
 
-    fn backward(&mut self, bp_grad: &NdArray) -> NdArray {
+    fn forward_as_borrow(&self, input: &NdArray) -> NdArray {
+        // input should be [bsz, hidden]
+        
+        // forward to get outputs
+        input * &self.weight.permute(vec![1, 0])  + &self.bias
+    }
+
+    fn backward(&mut self, bp_grad: NdArray) -> NdArray {
         // bp [bsz, outsize]
         // temp [bsz, insize]
         // println!("first loss {}", bp_grad);
 
         self.grad_w += bp_grad.permute(vec![1, 0]) * &self.temp_grad_w.take().unwrap();
 
-        let mut temp_grad_b = &self.temp_grad_b.take().unwrap() * bp_grad;
+        let mut temp_grad_b = &self.temp_grad_b.take().unwrap() * &bp_grad;
         temp_grad_b.squeeze(0);
         self.grad_b += temp_grad_b;
 
@@ -66,6 +73,10 @@ impl NNBackPropagation for Linear {
         self.grad_w.clear();
         self.grad_b.clear();
     }
+
+    fn weight_mut_borrow(&mut self) -> &mut [f32] {
+        self.weight.data_as_mut_vector()
+    }
 }
 
 
@@ -88,24 +99,13 @@ impl Linear {
         self.temp_grad_w = Some(input.clone());
         self.temp_grad_b = Some(NdArray::new(vec![vec![1.0; input.shape[0]]]));
     }
-
-    pub fn weight_init<F>(&mut self, init_fn: F) where F: Fn(&mut [f32]) {
-        init_fn(self.weight.data_as_mut_vector());
-    }
-
-    pub fn forward_as_borrow(&self, input: &NdArray) -> NdArray {
-        // input should be [bsz, hidden]
-        
-        // forward to get outputs
-        input * &self.weight.permute(vec![1, 0])  + &self.bias
-    }
 }
 
 #[cfg(test)]
 mod test {
     use std::vec;
 
-    use crate::{ndarray::NdArray, model::{utils::Penalty, nn::criterion::MeanSquaredError}};
+    use crate::{ndarray::NdArray, model::{nn::criterion::MeanSquaredError}};
 
     use super::{Linear, NNBackPropagation};
 
@@ -126,9 +126,9 @@ mod test {
 
             let loss = criterion.forward(outs, &target);
             println!("loss {}", loss);
-            let bp_grad = l2.backward(&loss);
+            let bp_grad = l2.backward(loss);
             println!("bp_grad1 {}", bp_grad);
-            let bp_grad = l1.backward(&bp_grad);
+            let bp_grad = l1.backward(bp_grad);
             println!("bp_grad2 {}", bp_grad);
             println!("l1 weight grad {}", l2.grad_w);
             println!("l1 bias grad {}", l2.grad_b);

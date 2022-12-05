@@ -12,7 +12,7 @@ impl LogisticRegression {
     where F: Fn(&mut [f32])
     {   
         let mut linear = Linear::new(feature_size, class_num, penalty);
-        linear.weight_init(weight_init_fn);
+        weight_init_fn(linear.weight_mut_borrow());
         Self { feature_size: feature_size, linear: linear, criterion: CrossEntropyLoss::new() }
     }
 
@@ -28,7 +28,7 @@ impl LogisticRegression {
 
         let bp_grad = self.criterion.forward(logits, label);
 
-        self.linear.backward(&bp_grad);
+        self.linear.backward(bp_grad);
         self.linear.step(feature.shape[0], lr, gradient_clip_by_norm);
 
         self.criterion.avg_loss

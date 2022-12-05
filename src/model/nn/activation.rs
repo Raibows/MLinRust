@@ -18,8 +18,12 @@ macro_rules! nn_no_param_initialization {
 
 macro_rules! nn_write_backward {
     () => {
-        fn backward(&mut self, bp_grad: &NdArray) -> NdArray {
+        fn backward(&mut self, bp_grad: NdArray) -> NdArray {
             bp_grad.point_multiply(&self.temp_grad.take().unwrap())
+        }
+
+        fn weight_mut_borrow(&mut self) -> &mut [f32] {
+            &mut []
         }
     };
 }
@@ -41,10 +45,15 @@ impl NNBackPropagation for Relu {
                     *g = 0.0;
                 }
             });
+            temp_grad.reshape(input.shape.clone());
             self.temp_grad = Some(temp_grad);
         }
             
         out
+    }
+
+    fn forward_as_borrow(&self, input: &NdArray) -> NdArray {
+        relu(input)
     }
     
     nn_write_backward!();
@@ -62,8 +71,11 @@ impl NNBackPropagation for Sigmoid {
             });
             self.temp_grad = Some(grad);
         }
-
         out
+    }
+
+    fn forward_as_borrow(&self, input: &NdArray) -> NdArray {
+        sigmoid(input)
     }
 
     nn_write_backward!();
@@ -79,9 +91,14 @@ impl NNBackPropagation for Tanh {
                 // 1 - tanh^2(x)
                 *i = 1.0 - i.powi(2);
             });
+            self.temp_grad = Some(grad);
         }
 
         out
+    }
+
+    fn forward_as_borrow(&self, input: &NdArray) -> NdArray {
+        tanh(input)
     }
 
     nn_write_backward!();

@@ -6,6 +6,7 @@ pub enum Penalty {
     RidgeL2(f32),
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum NormType {
     L1(f32),
     L2(f32),
