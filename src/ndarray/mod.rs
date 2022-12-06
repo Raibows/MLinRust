@@ -185,54 +185,144 @@ impl NdArray {
         sizes
     }
 
+    /// faster than original permute(implemented by recursive call) 20x
     pub fn permute(&self, order: Vec<usize>) -> NdArray {
         // check whether the order is valid
         // e.g., transpose [0, 1] -> [1, 0]
         assert!(order.len() == self.dim());
         let mut tgt_shape = vec![0usize; self.dim()];
+        let mut tgt_src_map = vec![0usize; self.dim()];
         let mut check = vec![false; self.dim()];
-        let mut src_tgt_map = vec![0usize; self.dim()];
+
         for (i, item) in order.iter().enumerate() {
             if check.get(*item).is_none() || check[*item] {
                 panic!("Permute Error, check target order {:?}", order);
             } else {
                 check[*item] = true;
                 tgt_shape[i] = self.shape[*item];
-                src_tgt_map[*item] = i;
+                tgt_src_map[i] = *item;
+            }
+        }
+        // test if it could be cloned from self
+        // do not need reorder data
+        let mut direct_return = true;
+
+        for (t, s) in tgt_src_map.iter().enumerate() {
+            if t == *s {
+                continue;
+            } else if ! ((tgt_shape[t] == 1 || tgt_shape[*s] == 1) && (t as i32 - *s as i32).abs() <= 1) {
+                direct_return = false;
+                break;
             }
         }
 
-        // prepare indexs to move data
-        let mut target_data = vec![0.0f32; NdArray::total_num(&self.shape)];
+        if direct_return {
+            let mut target = self.clone();
+            target.reshape(tgt_shape);
+            target
+        } else {
+            let mut target_data = vec![0.0f32; NdArray::total_num(&self.shape)];
 
-        let src_sizes = NdArray::index_base_sizes(&self.shape);
-        let tgt_sizes = NdArray::index_base_sizes(&tgt_shape);
-
-        // start moving
-        fn recursive_move(dim: usize, pos: usize, src_data_i: usize, tgt_data_i: usize, src_sizes: &Vec<usize>, tgt_sizes: &Vec<usize>, src_data: &Vec<f32>, tgt_data: &mut Vec<f32>, src_shapes: &Vec<usize>, tgt_shapes: &Vec<usize>, src_tgt_pos_map: &Vec<usize>) {
-            if pos == dim - 1 {
-                for i in 0..src_shapes[pos] {
-                    let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
-                    let si = src_data_i + i * src_sizes[pos];
-                    // println!("src_sizes = {:?}, tgt_sizes = {:?} \nti = {}, si = {}", src_sizes, tgt_sizes, ti, si);
-                    tgt_data[ti] = src_data[si];
-                }
-            } else {
-                for i in 0..src_shapes[pos] {
-                    let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
-                    let si = src_data_i + src_sizes[pos] * i;
-                    recursive_move(dim, pos + 1, si, ti, src_sizes, tgt_sizes, src_data, tgt_data, src_shapes, tgt_shapes, src_tgt_pos_map);
-                }
+            // prepare indexs to move data
+            let temp = NdArray::index_base_sizes(&self.shape);
+            let mut src_sizes = vec![];
+            for t in tgt_src_map {
+                src_sizes.push(temp[t]);
             }
+
+            let tgt_sizes = NdArray::index_base_sizes(&tgt_shape);
+
+            let mut products = vec![0; self.dim()];
+
+            let tgt_last_dim_ele_num = tgt_shape[self.dim() - 1];
+            let self_last_step = src_sizes[self.dim() - 1];
+
+            let mut base_self_idx = 0;
+            let mut base_tgt_idx = 0;
+
+            loop {
+                self.data.iter().skip(base_self_idx).step_by(self_last_step)
+                .zip(target_data.iter_mut().skip(base_tgt_idx))
+                .take(tgt_last_dim_ele_num)
+                .for_each(|(si, ti)| {
+                    *ti = *si;
+                });
+
+                // println!("order {:?}", products);
+                let mut t = self.dim() - 2;
+                while t > 0 {
+                    if products[t] + 1 < tgt_shape[t] {
+                        break;
+                    }
+                    t -= 1;
+                }
+                products[t] += 1;
+
+                if products[t] == tgt_shape[t] {
+                    break;
+                }
+
+                base_self_idx += src_sizes[t];
+                base_tgt_idx  += tgt_sizes[t];
+                
+                products.iter_mut().skip(t + 1).for_each(|i| *i = 0);
+            }
+
+            let mut target = NdArray::new(target_data);
+            target.reshape(tgt_shape);
+            target
         }
-        
-        recursive_move(self.dim(), 0, 0, 0, &src_sizes, &tgt_sizes, &self.data, &mut target_data, &self.shape, &tgt_shape, &src_tgt_map);
-
-        let mut target = NdArray::new(target_data);
-        target.reshape(tgt_shape);
-
-        target
     }
+
+
+    // pub fn permute(&self, order: Vec<usize>) -> NdArray {
+    //     // check whether the order is valid
+    //     // e.g., transpose [0, 1] -> [1, 0]
+    //     assert!(order.len() == self.dim());
+    //     let mut tgt_shape = vec![0usize; self.dim()];
+    //     let mut check = vec![false; self.dim()];
+    //     let mut src_tgt_map = vec![0usize; self.dim()];
+    //     for (i, item) in order.iter().enumerate() {
+    //         if check.get(*item).is_none() || check[*item] {
+    //             panic!("Permute Error, check target order {:?}", order);
+    //         } else {
+    //             check[*item] = true;
+    //             tgt_shape[i] = self.shape[*item];
+    //             src_tgt_map[*item] = i;
+    //         }
+    //     }
+
+    //     // prepare indexs to move data
+    //     let mut target_data = vec![0.0f32; NdArray::total_num(&self.shape)];
+
+    //     let src_sizes = NdArray::index_base_sizes(&self.shape);
+    //     let tgt_sizes = NdArray::index_base_sizes(&tgt_shape);
+
+    //     // start moving
+    //     fn recursive_move(dim: usize, pos: usize, src_data_i: usize, tgt_data_i: usize, src_sizes: &Vec<usize>, tgt_sizes: &Vec<usize>, src_data: &Vec<f32>, tgt_data: &mut Vec<f32>, src_shapes: &Vec<usize>, tgt_shapes: &Vec<usize>, src_tgt_pos_map: &Vec<usize>) {
+    //         if pos == dim - 1 {
+    //             for i in 0..src_shapes[pos] {
+    //                 let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
+    //                 let si = src_data_i + i * src_sizes[pos];
+    //                 // println!("src_sizes = {:?}, tgt_sizes = {:?} \nti = {}, si = {}", src_sizes, tgt_sizes, ti, si);
+    //                 tgt_data[ti] = src_data[si];
+    //             }
+    //         } else {
+    //             for i in 0..src_shapes[pos] {
+    //                 let ti = tgt_data_i + tgt_sizes[src_tgt_pos_map[pos]] * i;
+    //                 let si = src_data_i + src_sizes[pos] * i;
+    //                 recursive_move(dim, pos + 1, si, ti, src_sizes, tgt_sizes, src_data, tgt_data, src_shapes, tgt_shapes, src_tgt_pos_map);
+    //             }
+    //         }
+    //     }
+        
+    //     recursive_move(self.dim(), 0, 0, 0, &src_sizes, &tgt_sizes, &self.data, &mut target_data, &self.shape, &tgt_shape, &src_tgt_map);
+
+    //     let mut target = NdArray::new(target_data);
+    //     target.reshape(tgt_shape);
+
+    //     target
+    // }
 
     pub fn clear(&mut self) {
         self.data.iter_mut().for_each(|i| *i = 0.0);
@@ -332,5 +422,36 @@ mod test {
         );
         bb.reshape(vec![3, 1, 2]);
         assert_eq!(bb, b);
+    }
+
+    #[test]
+    fn test_permute_intrinsic() {
+
+        let a = NdArray::new(vec![4usize, 1]);
+        a.permute(vec![1, 0]);
+
+        let a = NdArray::new(vec![4usize, 2, 3]);
+        a.permute(vec![2, 1, 0]);
+
+        // let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        // a.reshape(vec![1, 2, 3]);
+        // let b = a.permute(vec![2, 0, 1]);
+    }
+
+    #[test]
+    fn test_permute_profiling() {
+        use rand::{thread_rng};
+        use rand::seq::SliceRandom;
+        let mut rng = thread_rng();
+
+        const PSIZE: usize = 128 * 512 * 64 * 64;
+        let vec: Vec<f32> = (0..PSIZE).map(|i| i as f32).collect();
+        let mut a = NdArray::new(vec);
+        a.reshape(vec![128usize, 512, 64, 64]);
+        let mut order = vec![0usize, 1, 2, 3];
+        for _ in 0..10 {
+            order.shuffle(&mut rng);
+            a = a.permute(order.clone());
+        }
     }
 }
