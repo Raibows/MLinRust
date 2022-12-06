@@ -7,7 +7,8 @@ fn main() {
 
     let path = ".data/MobilePhonePricePredict/train.csv";
 
-    let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
+    let mut dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
+    dataset.shuffle(0);
     let mut temp =  dataset.split_dataset(vec![0.8, 0.2]);
     let (train_dataset, test_dataset) = (temp.remove(0), temp.remove(0));
 
