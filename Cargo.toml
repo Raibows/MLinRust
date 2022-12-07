@@ -9,4 +9,3 @@ name = "mlinrust"
 path = "src/lib.rs"
 
 [dependencies]
-rand = "0.8.5"

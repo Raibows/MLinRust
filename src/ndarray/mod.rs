@@ -355,6 +355,8 @@ impl NdArray {
 
 #[cfg(test)]
 mod test {
+    use crate::utils::RandGenerator;
+
     use super::NdArray;
 
     #[test]
@@ -440,9 +442,7 @@ mod test {
 
     #[test]
     fn test_permute_profiling() {
-        use rand::{thread_rng};
-        use rand::seq::SliceRandom;
-        let mut rng = thread_rng();
+        let mut rng = RandGenerator::new(0);
 
         const PSIZE: usize = 128 * 512 * 64 * 64;
         let vec: Vec<f32> = (0..PSIZE).map(|i| i as f32).collect();
@@ -450,7 +450,7 @@ mod test {
         a.reshape(vec![128usize, 512, 64, 64]);
         let mut order = vec![0usize, 1, 2, 3];
         for _ in 0..10 {
-            order.shuffle(&mut rng);
+            rng.shuffle(&mut order);
             a = a.permute(order.clone());
         }
     }

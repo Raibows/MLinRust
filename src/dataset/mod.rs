@@ -1,5 +1,6 @@
 use std::{fs::OpenOptions, io::Read, collections::HashMap};
-use rand::{thread_rng, seq::SliceRandom};
+
+use crate::utils::RandGenerator;
 
 mod iris_dataset;
 mod mobile_phone_price_predict;
@@ -175,10 +176,10 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         (&self.features[idx], &self.labels[idx])
     }
 
-    pub fn shuffle(&mut self, _seed: usize) {
-        let mut rng = thread_rng();
+    pub fn shuffle(&mut self, seed: usize) {
+        let mut rng = RandGenerator::new(seed);
         let mut idxs: Vec<usize> = (0..self.len()).collect();
-        idxs.shuffle(&mut rng);
+        rng.shuffle(&mut idxs);
         let mut features = vec![Vec::with_capacity(self.feature_len()); self.len()];
         let mut labels = vec![*self.labels.first().unwrap(); self.len()];
         for i in idxs {

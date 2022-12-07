@@ -1,6 +1,5 @@
-use rand::Rng;
-
 use crate::ndarray::NdArray;
+use crate::utils::RandGenerator;
 use super::Model;
 use super::utils::{NormType, Penalty};
 
@@ -59,9 +58,9 @@ impl NeuralNetwork {
     }
 
     pub fn weight_init(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = RandGenerator::new(0);
         for nn in self.layers.iter_mut() {
-            nn.weight_mut_borrow().iter_mut().for_each(|i| *i = rng.gen());
+            nn.weight_mut_borrow().iter_mut().for_each(|i| *i = rng.gen_f32());
         }
     }
 }
