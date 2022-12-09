@@ -3,7 +3,7 @@ use crate::ndarray::NdArray;
 use super::{Dataset, TaskLabelType};
 
 
-pub struct Dataloader<T: TaskLabelType + Copy, E: TestDatasetTrait<T>> {
+pub struct Dataloader<T: TaskLabelType + Copy, E: DatasetBorrowTrait<T>> {
     pub batch_size: usize,
     pub shuffle: bool,
     batch_features: Option<Vec<NdArray>>, // for now, ndarray is not supporting &T, so we have to take clone
@@ -32,7 +32,7 @@ impl<T: TaskLabelType> Iterator for BatchIterator<T> {
     }
 }
 
-impl<T: TaskLabelType + Copy, E: TestDatasetTrait<T>> IntoIterator for &mut Dataloader<T, E> {
+impl<T: TaskLabelType + Copy, E: DatasetBorrowTrait<T>> IntoIterator for &mut Dataloader<T, E> {
     type Item = <BatchIterator<T> as Iterator>::Item;
     type IntoIter = BatchIterator<T>;
     fn into_iter(self) -> Self::IntoIter {
@@ -49,11 +49,8 @@ impl<T: TaskLabelType + Copy, E: TestDatasetTrait<T>> IntoIterator for &mut Data
     }
 }
 
-pub trait TestDatasetTrait<T: TaskLabelType + Copy> {
-    /// note that this is a null function, you should not expect to shuffle a evaluation dataset since evaluate often accepts a non mut reference, it cannot be shuffled
-    fn shuffle(&self, _seed: usize) {
-
-    }
+pub trait DatasetBorrowTrait<T: TaskLabelType + Copy> {
+    fn shuffle_batch(&mut self, seed: usize);
 
     fn total_len(&self) -> usize;
 
@@ -78,16 +75,26 @@ macro_rules! write_dataset_to_dataloader_trait {
     }
 }
 
-impl<T: TaskLabelType + Copy> TestDatasetTrait<T> for Dataset<T> {
+impl<T: TaskLabelType + Copy> DatasetBorrowTrait<T> for Dataset<T> {
+    fn shuffle_batch(&mut self, seed: usize) {
+        self.shuffle(seed);
+    }
+
     write_dataset_to_dataloader_trait!();
 }
 
-impl<T: TaskLabelType + Copy> TestDatasetTrait<T> for &Dataset<T> {
+/// note that you should not expect to shuffle a evaluation dataset since evaluate often accepts a non mut reference, it cannot be shuffled
+impl<T: TaskLabelType + Copy> DatasetBorrowTrait<T> for &Dataset<T> {
+
+    fn shuffle_batch(&mut self, _seed: usize) {
+        panic!("you should not expect to shuffle a non mut reference dataset");
+    }
+
     write_dataset_to_dataloader_trait!();
 }
 
 
-impl<T: TaskLabelType + Copy, E: TestDatasetTrait<T>> Dataloader<T, E> {
+impl<T: TaskLabelType + Copy, E: DatasetBorrowTrait<T>> Dataloader<T, E> {
 
     pub fn new(dataset: E, batch_size: usize, shuffle: bool) -> Self {
         Self { batch_size: batch_size, shuffle: shuffle, batch_features: None, batch_labels: None, raw_dataset: dataset }
@@ -95,7 +102,7 @@ impl<T: TaskLabelType + Copy, E: TestDatasetTrait<T>> Dataloader<T, E> {
 
     fn init_batches(&mut self) {
         if self.shuffle {
-            self.raw_dataset.shuffle(0)
+            self.raw_dataset.shuffle_batch(0);
         }
         let sampler: Vec<usize> = (0..self.raw_dataset.total_len()).collect();
         let iter = sampler.chunks(self.batch_size);
