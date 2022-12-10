@@ -7,15 +7,14 @@ fn main() {
 
     let path = ".data/MobilePhonePricePredict/train.csv";
 
-    let mut dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
-    dataset.shuffle(0);
-    let mut temp =  dataset.split_dataset(vec![0.8, 0.2]);
+    let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
+    let mut temp =  dataset.split_dataset(vec![0.8, 0.2], 0);
     let (train_dataset, test_dataset) = (temp.remove(0), temp.remove(0));
 
     println!("train {} : test {}", train_dataset.len(), test_dataset.len());
 
     let mut model = DecisionTree::<usize>::new(1, 7, InfoGains::Entropy);
-    model.init(train_dataset);
+    model.train(train_dataset);
     println!("model training done!");
     model.print_self(&model.root, 0);
 

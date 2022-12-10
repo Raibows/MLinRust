@@ -27,6 +27,15 @@ impl<'a, T: TaskLabelType + Copy> EvaluateArgTrait<'a, T> for &mut Dataloader<T,
     }
 }
 
+impl<'a, T: TaskLabelType + Copy> EvaluateArgTrait<'a, T> for &mut Dataloader<T, Dataset<T>> {
+    fn dataloader_iter(self, batch: usize) -> BatchIterator<T> {
+        if self.batch_size != batch {
+            self.batch_size = batch;
+        }
+        self.iter_mut()
+    }
+}
+
 /// evaluate classification dataset<usize>
 /// * data: &Dataset<usize> or &mut Dataloader<usize, &Dataset<usize>>
 /// * return: (correct_num, accuracy)
