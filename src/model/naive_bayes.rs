@@ -175,7 +175,7 @@ mod test {
         let path = ".data/MobilePhonePricePredict/train.csv";
 
         let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
-        let mut temp =  dataset.split_dataset(vec![0.8, 0.2]);
+        let mut temp =  dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (temp.remove(0), temp.remove(0));
 
         let discrete_feature_is: Vec<bool> = (0..train_dataset.feature_len()).map(|i| {

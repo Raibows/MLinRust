@@ -109,7 +109,7 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
         DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain}
     }
 
-    pub fn init(&mut self, dataset: Dataset<T>) 
+    pub fn train(&mut self, dataset: Dataset<T>) 
     where Dataset<T>: TaskConditionedReturn<T> 
     {
         self.root = Some(Box::new(self.build_trees(dataset, 0)));
@@ -234,7 +234,7 @@ mod test {
         let y = vec![0, 1, 2];
         let temp_dataset = Dataset::new(x, y, None);
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
-        dct.init(temp_dataset);
+        dct.train(temp_dataset);
         dct.print_self(&dct.root, 0);
 
         assert!(false);
@@ -244,11 +244,11 @@ mod test {
     fn test_iris_dataset() {
         let path = ".data/IRIS.csv";
         let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset, None);
-        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
-        dct.init(train_dataset);
+        dct.train(train_dataset);
 
         dct.print_self(&dct.root, 0);
 
@@ -262,11 +262,11 @@ mod test {
     fn test_mobile_phone_price_dataset() {
         let path = ".data/MobilePhonePricePredict/train.csv";
         let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
-        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
-        dct.init(train_dataset);
+        dct.train(train_dataset);
 
         dct.print_self(&dct.root, 0);
 
@@ -280,12 +280,12 @@ mod test {
     fn test_car_price_regression_dataset() {
         let path = ".data/TianchiCarPriceRegression/train_5w.csv";
         let dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset, None);
-        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
         println!("split dataset train {} : test {}", train_dataset.len(), test_dataset.len());
 
         let mut dct = DecisionTree::new(100, 3, InfoGains::Variation);
-        dct.init(train_dataset);
+        dct.train(train_dataset);
         dct.print_self(&dct.root, 0);
 
         let abs_error = evaluate_regression(&test_dataset, &dct);

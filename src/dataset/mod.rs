@@ -193,32 +193,37 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
     /// 
     /// the ratio will be normalized
     /// 
-    /// strongly suggest shuffling first
-    pub fn split_dataset(mut self, mut ratio: Vec<f32>) -> Vec<Dataset<T>> {
-        let total = self.len();
-        // normalize the passed in ratio to ensure the sum is 1.0
-        let t = ratio.iter().sum::<f32>();
-        ratio.iter_mut().for_each(|item| *item /= t);
-        
+    /// **WARNING**: every subsets will at least have one sample indicating that it will not exactly follow the given ratio in extreme cases
+    /// 
+    /// it will shuffle first
+    pub fn split_dataset(mut self, ratio: Vec<f32>, seed: usize) -> Vec<Dataset<T>> {
+        let subset_num = ratio.len();
+        assert!(self.len() >= subset_num, "the dataset only has {} samples, not enough for being divided to {} sets", self.len(), subset_num);
+
+        self.shuffle(seed);
+
         let mut res = vec![];
-        let mut start = 0;
-        for r in ratio {
-            let r = (total as f32 * r) as usize;
+        let mut reserved = self.len();
+
+        for (i, r) in ratio.iter().enumerate() {
+            let total = ratio.iter().skip(i + 1).sum::<f32>() + r;
+            let mut r = (r / total * reserved as f32) as usize;
+            let others = reserved - r;
+
+            if r == 0 {
+                r = 1;
+            } else if others < subset_num - i - 1 {
+                r -= subset_num - i - 1 - others;
+            }
+            reserved -= r;
+
             let mut features = Vec::with_capacity(r);
             let mut labels = Vec::with_capacity(r);
-            for i in 0..r {
-                if start + i == total {
-                    break;
-                }
+            for _ in 0..r {
                 features.push(self.features.pop().unwrap());
-                labels.push(self.labels.pop().unwrap());
+                labels.push(self.labels.pop().unwrap())
             }
-            start += r;
             res.push(Self::new(features, labels, self.label_map.clone()));
-        }
-        for (feature, label) in self.features.into_iter().zip(self.labels.into_iter()) {
-            res.last_mut().unwrap().features.push(feature);
-            res.last_mut().unwrap().labels.push(label);
         }
         res
     }
@@ -241,11 +246,26 @@ mod test {
     }
 
     #[test]
+    fn test_split_dataset() {
+        let dataset = Dataset::new(vec![
+            vec![0.0; 3]; 10
+        ], (0..10).collect(), None);
+        let res = dataset.split_dataset(vec![52.4, 0.001, 5.46], 42);
+        for dataset in res {
+            println!("size {} / 10", dataset.len());
+            for (_, l) in &dataset {
+                print!("{} ", l);
+            }
+            print!("\n");
+        }
+    }
+
+    #[test]
     fn test_dataset_load_profiling() {
         let path = ".data/TianchiCarPriceRegression/train_5w.csv";
         let mut dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset, None);
         dataset.shuffle(0);
-        let _ = dataset.split_dataset(vec![0.8, 0.2]);
+        let _ = dataset.split_dataset(vec![0.8325, 0.1232197], 0);
         // replace ``remove`` in shuffling and splitting functions with ``pop`` help accelerate 50% 
     }
 }

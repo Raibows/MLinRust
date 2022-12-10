@@ -72,7 +72,7 @@ mod test {
     fn test_with_tianchi_car_price_dataset() -> std::io::Result<()> {
         let path = ".data/TianchiCarPriceRegression/train_5w.csv";
         let dataset = Dataset::<f32>::from_name(path, DatasetName::CarPriceRegressionDataset, None);
-        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
 
         let mut model = LinearRegression::new(train_dataset.feature_len(), Some(Penalty::RidgeL2(0.1)), |_| {});

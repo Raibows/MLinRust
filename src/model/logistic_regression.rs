@@ -75,7 +75,7 @@ mod test {
         let path = ".data/MobilePhonePricePredict/train.csv";
         let mut dataset: Dataset<usize> = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
         dataset.shuffle(0);
-        let mut res = dataset.split_dataset(vec![0.8, 0.2]);
+        let mut res = dataset.split_dataset(vec![0.8, 0.2], 0);
         let (train_dataset, test_dataset) = (res.remove(0), res.remove(0));
 
         let mut model = LogisticRegression::new(train_dataset.feature_len(), train_dataset.class_num(), Some(Penalty::RidgeL2(1e-1)),|_| {});
