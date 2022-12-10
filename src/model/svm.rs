@@ -84,13 +84,13 @@ impl SupportVectorMachine {
     pub fn train(&mut self, dataset: Dataset<usize>, epoch: usize, loss: SVMLoss, early_stop: bool) {
         assert!(dataset.class_num() == 2);
         let bsz = self.bsz.unwrap_or(dataset.len());
-        let mut dataloader = Dataloader::new(dataset, bsz, true);
+        let mut dataloader = Dataloader::new(dataset, bsz, true, None);
 
         let mut early_stop_loss: Vec<f32> = vec![];
 
         for ep in 0..epoch {
             let mut avg_loss = vec![];
-            for (x, y) in &mut dataloader {
+            for (x, y) in dataloader.iter_mut() {
                 let loss = self.gradient_backward(loss, &x, &y);
                 avg_loss.push(loss);
             }

@@ -80,7 +80,7 @@ mod test {
 
         let mut model = LogisticRegression::new(train_dataset.feature_len(), train_dataset.class_num(), Some(Penalty::RidgeL2(1e-1)),|_| {});
 
-        let mut train_dataloader = Dataloader::new(train_dataset, 8, true);
+        let mut train_dataloader = Dataloader::new(train_dataset, 8, true, None);
 
         const EPOCH: usize = 3000;
         let mut best_acc = vec![];
@@ -90,7 +90,7 @@ mod test {
                 i if i < 200 => 1e-3,
                 _ => 2e-3,
             };
-            for (feature, label) in &mut train_dataloader {
+            for (feature, label) in train_dataloader.iter_mut() {
                 let loss = model.one_step(&feature, &label, lr, Some(NormType::L2(1.0)));
                 losses.push(loss);
             }

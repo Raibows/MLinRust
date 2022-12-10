@@ -1,25 +1,65 @@
+use crate::dataset::dataloader::{Dataloader, BatchIterator};
 use crate::dataset::{Dataset, TaskLabelType};
 use crate::model::Model;
 
-
-pub fn evaluate<T: TaskLabelType + Copy + std::cmp::PartialEq>(dataset: &Dataset<T>, model: &impl Model<T>) -> (usize, f32) {
-    let mut correct = 0;
-    for i in 0..dataset.len() {
-        let (feature, label) = dataset.get(i);
-        if model.predict(feature) == *label {
-            correct += 1;
-        }
-    }
-    (correct, correct as f32 / dataset.len() as f32)
+/// Trait for 
+/// * &Dataset<T>
+/// * &mut Dataloader<T, &Dataset<T>>
+/// 
+/// pass a dataloader will reduce the construction and enable batch prediction
+pub trait EvaluateArgTrait<'a, T: TaskLabelType + Copy> {
+    fn dataloader_iter(self, batch: usize) -> BatchIterator<T>;
 }
 
-pub fn evaluate_regression(dataset: &Dataset<f32>, model: &impl Model<f32>) -> f32 {
-    let mut error = 0.0;
-    for i in 0..dataset.len() {
-        let (feature, label) = dataset.get(i);
-        error += (model.predict(feature) - label).abs();
+impl<'a, T: TaskLabelType + Copy> EvaluateArgTrait<'a, T> for &Dataset<T> {
+    fn dataloader_iter(self, batch: usize) -> BatchIterator<T> {
+        let mut loader = Dataloader::new(self, batch, false, None);
+        loader.iter_mut()
     }
-    error / dataset.len() as f32
+}
+
+impl<'a, T: TaskLabelType + Copy> EvaluateArgTrait<'a, T> for &mut Dataloader<T, &Dataset<T>> {
+    fn dataloader_iter(self, batch: usize) -> BatchIterator<T> {
+        if self.batch_size != batch {
+            self.batch_size = batch;
+        }
+        self.iter_mut()
+    }
+}
+
+/// evaluate classification dataset<usize>
+/// * data: &Dataset<usize> or &mut Dataloader<usize, &Dataset<usize>>
+/// * return: (correct_num, accuracy)
+pub fn evaluate<'a, T: EvaluateArgTrait<'a, usize>>(data: T, model: &impl Model<usize>) -> (usize, f32)
+{
+    let mut correct = 0;
+    let mut total = 0;
+    for (feature, label) in data.dataloader_iter(128) {
+        model.predict_with_batch(&feature).iter().zip(label.iter()).for_each(|(p, l)| {
+            if p == l {
+                correct += 1;
+            }
+            total += 1;
+        })
+    }
+    (correct, correct as f32 / total as f32)
+}
+
+/// evaluate regression dataset<f32>
+/// * data: &Dataset<f32> or &mut Dataloader<f32, &Dataset<f32>>
+/// * return: mean absolute error
+pub fn evaluate_regression<'a, T: EvaluateArgTrait<'a, f32>>(dataset: T, model: &impl Model<f32>) -> f32 {
+    let mut error = 0.0;
+    let mut total = 0;
+
+    for (feature, label) in dataset.dataloader_iter(128) {
+        error += model.predict_with_batch(&feature).iter().zip(label.iter())
+        .fold(0.0, |s, (p, l)| {
+            total += 1;
+            s + (p - l).abs()
+        });
+    }
+    error / total as f32
 }
 
 

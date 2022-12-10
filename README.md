@@ -5,7 +5,9 @@
 </div>
 
 
-This is an exercise project for beginners in the Rust programming language. This project implements several classical machine learning algorithms in Rust from scratch without relying on any third-party libraries, which indicates that it is a **bootstrap machine learning library**.
+This is a self-practice project for learning the Rust programming language. This project implements several classical machine learning algorithms in Rust from scratch without relying on any third-party libraries. It serves as a **bootstrap machine learning library** that provides a basic understanding of machine learning and Rust.
+
+Actively seeking code reviews and welcome suggestions on fixing bugs or improving implementations. Please feel free to share your ideas. Happy to learn from experienced developers.
 
 ## Basics
 

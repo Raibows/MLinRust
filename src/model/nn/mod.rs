@@ -106,6 +106,11 @@ impl Model<f32> for NeuralNetwork {
         let predicts = self.forward_as_borrow(&input);
         predicts[0][0]
     }
+
+    fn predict_with_batch(&self, features: &NdArray) -> Vec<f32> {
+        let res = self.forward_as_borrow(features);
+        res.destroy().1
+    }
 }
 
 
@@ -161,14 +166,14 @@ mod test {
         model.weight_init();
         let mut criterion = MeanSquaredError::new();
 
-        let mut train_dataloader = dataloader::Dataloader::new(train_dataset, 64, true);
+        let mut train_dataloader = dataloader::Dataloader::new(train_dataset, 64, true, None);
 
         const EPOCH: usize = 10;
         let mut error_records = vec![];
         for ep in 0..EPOCH {
             let mut losses = vec![];
             let start = Instant::now();
-            for (feature, label) in &mut train_dataloader {
+            for (feature, label) in train_dataloader.iter_mut() {
                 let logits = model.forward(&feature, true);
                 let grad = criterion.forward(logits, &label);
                 model.backward(grad);

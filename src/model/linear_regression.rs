@@ -77,13 +77,13 @@ mod test {
 
         let mut model = LinearRegression::new(train_dataset.feature_len(), Some(Penalty::RidgeL2(0.1)), |_| {});
 
-        let mut train_dataloader = Dataloader::new(train_dataset, 64, true);
+        let mut train_dataloader = Dataloader::new(train_dataset, 64, true, None);
 
         const EPOCH: usize = 10;
         let mut error_records = vec![];
         for ep in 0..EPOCH {
             let mut losses = vec![];
-            for (feature, label) in &mut train_dataloader {
+            for (feature, label) in train_dataloader.iter_mut() {
                 let loss = model.one_step(&feature, &label, 1e-2, Some(NormType::L2(1.0)));
                 losses.push(loss);
             }
