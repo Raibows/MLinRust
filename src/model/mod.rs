@@ -6,6 +6,7 @@ pub mod linear_regression;
 pub mod naive_bayes;
 pub mod svm;
 pub mod nn;
+pub mod knn;
 
 pub trait Model<T: TaskLabelType> {
     // todo implement generics for feature to accept batch or ndarray etc.
