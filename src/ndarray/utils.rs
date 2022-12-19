@@ -4,7 +4,7 @@ pub fn check_dim_is_legal(dim: i32, max_dim: usize) -> usize {
     // check if dim is legal
     // convert potential negative dimension index to usize
     assert!((dim >= 0 && dim < max_dim as i32) || 
-    (dim < 0 && dim >= - (max_dim as i32)));
+    (dim < 0 && dim >= - (max_dim as i32)), "check your dim {} should < max {}", dim, max_dim);
     if dim < 0 {
         (max_dim as i32 + dim) as usize
     } else {
@@ -123,6 +123,49 @@ pub fn argmax(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &get_arg_by_max)
 }
 
+pub fn mean(x: &NdArray, dim: i32) -> NdArray {
+    fn avg_value(src_data: Vec<&f32>) -> f32 {
+        src_data.iter().fold(0.0, |s, i| s + **i) / src_data.len() as f32
+    }
+    gather_by_a_specific_dim_and_do(x, dim, &avg_value)
+}
+
+pub fn min(x: &NdArray, dim: i32) -> NdArray {
+    fn min_value(src_data: Vec<&f32>) -> f32 {
+        src_data.iter().fold(f32::MAX, |s, i| s.min(**i))
+    }
+    gather_by_a_specific_dim_and_do(x, dim, &min_value)
+}
+
+pub fn max(x: &NdArray, dim: i32) -> NdArray {
+    fn max_value(src_data: Vec<&f32>) -> f32 {
+        src_data.iter().fold(f32::MIN, |s, i| s.max(**i))
+    }
+    gather_by_a_specific_dim_and_do(x, dim, &max_value)
+}
+
+/// following PyTorch, calculate the standard deviation with a specific dim
+/// 
+/// * unbiased = true: means doing an unbiased estimation, i.e., sum / (N-1) 
+/// * unbiased = false: i.e., sum / N
+pub fn std(x: &NdArray, dim: i32, unbiased: bool) -> NdArray {
+    fn std_value(src_data: Vec<&f32>) -> f32 {
+        let mean = src_data.iter().fold(0.0, |s, i| s + **i) / src_data.len() as f32;
+        (src_data.iter().fold(0.0, |s, i| s + (**i - mean).powf(2.0)) / f32::max((src_data.len() - 1) as f32, 1e-6)).sqrt()
+    }
+    fn std_value_biased(src_data: Vec<&f32>) -> f32 {
+        let mean = src_data.iter().fold(0.0, |s, i| s + **i) / src_data.len() as f32;
+        (src_data.iter().fold(0.0, |s, i| s + (**i - mean).powf(2.0)) / src_data.len() as f32).sqrt()
+    }
+    if unbiased {
+        gather_by_a_specific_dim_and_do(x, dim, &std_value)
+    } else {
+        gather_by_a_specific_dim_and_do(x, dim, &std_value_biased)
+    }
+    
+}
+
+
 /// 1 / (1 + exp(-x))
 /// 
 /// \[0.0, 1.0\]
@@ -171,7 +214,7 @@ pub fn relu(x: &NdArray) -> NdArray {
 
 #[cfg(test)]
 mod test {
-    use super::{softmax, sum_ndarray, argmax, relu, sigmoid, tanh};
+    use super::{softmax, sum_ndarray, argmax, relu, sigmoid, tanh, mean, std, min, max};
     use super::NdArray;
 
     #[test]
@@ -228,5 +271,16 @@ mod test {
           ]);
         println!("{}", x);
         assert_eq!(xx, x);
+    }
+
+    #[test]
+    fn test_mean_std_min_max() {
+        // let a = NdArray::default();
+        // mean(&a, 0); // assert error, since default has no data
+        let a = NdArray::random(vec![2, 3], None);
+        println!("{}\nmean:{}\nstd:{}", a, mean(&a, 1), std(&a, 1, true));
+
+        println!("min{}\nmax{}", min(&a, 1), max(&a, 1));
+
     }
 }

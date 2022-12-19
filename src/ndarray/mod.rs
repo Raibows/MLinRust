@@ -1,4 +1,6 @@
 
+use crate::utils::RandGenerator;
+
 use self::utils::check_dim_is_legal;
 use self::ops::universal_ops;
 
@@ -100,7 +102,7 @@ impl std::fmt::Display for NdArray {
                     write!(f, "{}, ", i)?;
                 }
             }
-            write!(f, "{}]", row[row.len() - 1])?;
+            write!(f, "{}],", row[row.len() - 1])?;
             Ok(())
         }
 
@@ -144,6 +146,14 @@ impl Default for NdArray {
 impl NdArray {
     pub fn new<T: NdArrayNewTrait>(arg: T) -> Self {
         arg.new()
+    }
+
+    pub fn random(shape: Vec<usize>, seed: Option<usize>) -> Self {
+        let mut a = Self::new(shape);
+        let seed = seed.unwrap_or(0);
+        let mut rng = RandGenerator::new(seed);
+        a.data_as_mut_vector().iter_mut().for_each(|i| *i = rng.gen_f32());
+        a
     }
 
     pub fn dim(&self) -> usize {
