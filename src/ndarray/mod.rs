@@ -149,10 +149,9 @@ impl NdArray {
     }
 
     pub fn random(shape: Vec<usize>, seed: Option<usize>) -> Self {
-        let mut a = Self::new(shape);
-        let seed = seed.unwrap_or(0);
-        let mut rng = RandGenerator::new(seed);
-        a.data_as_mut_vector().iter_mut().for_each(|i| *i = rng.gen_f32());
+        let mut rng = RandGenerator::new(seed.unwrap_or(0));
+        let data: Vec<f32> = (0..NdArray::total_num(&shape)).map(|_| rng.gen_f32()).collect();
+        let a = Self { shape: shape, data: data };
         a
     }
 
@@ -346,6 +345,16 @@ impl NdArray {
         }
     }
 
+    /// if the original size of ndarray is [a, b]
+    /// * insert_sizes: [c, d]
+    /// * inplace self: [c, d, a, b]
+    pub fn repeat(&mut self, mut insert_sizes: Vec<usize>) {
+        insert_sizes.iter().for_each(|i| assert!(*i > 0, "insert_sizes {:?} all must > 0", insert_sizes));
+        self.data = self.data.repeat(Self::total_num(&insert_sizes));
+        insert_sizes.append(&mut self.shape);
+        self.shape = insert_sizes;
+    }
+
     pub fn destroy(self) -> (Vec<usize>, Vec<f32>) {
         (self.shape, self.data)
     }
@@ -463,5 +472,12 @@ mod test {
             rng.shuffle(&mut order);
             a = a.permute(order.clone());
         }
+    }
+
+    #[test]
+    fn test_repeat() {
+        let mut a = NdArray::random(vec![2, 3], None);
+        a.repeat(vec![4, 1]);
+        println!("{}", a);
     }
 }
