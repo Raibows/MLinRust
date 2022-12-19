@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::utils::{ImputeType, impute_lost_values};
+use super::utils::{ImputeType, impute_missing_values};
 
 pub fn process_tianchi_car_price_regression_dataset(data: String, fill_missing_value_by: ImputeType) -> (Vec<Vec<f32>>, Vec<f32>, Option<HashMap<usize, String>>) {
     let lines: Vec<&str> = data.split("\n").collect();
@@ -20,14 +20,14 @@ pub fn process_tianchi_car_price_regression_dataset(data: String, fill_missing_v
         labels.push(label);
     }
     
-    (impute_lost_values(features, fill_missing_value_by), labels, None)
+    (impute_missing_values(features, fill_missing_value_by), labels, None)
 }
 
 
 #[cfg(test)]
 mod test {
     use crate::dataset::{Dataset, FromPathDataset};
-    use crate::dataset::utils::{impute_lost_values, ImputeType};
+    use crate::dataset::utils::{impute_missing_values, ImputeType};
     use super::process_tianchi_car_price_regression_dataset;
 
     #[test]
@@ -46,7 +46,7 @@ mod test {
 
         println!("{:?} {}", t, t.len());
 
-        let t = impute_lost_values(vec![t, t1], ImputeType::Value(f32::MAX));
+        let t = impute_missing_values(vec![t, t1], ImputeType::Value(f32::MAX));
         println!("{:?} {}", t, t.len());
         
     }

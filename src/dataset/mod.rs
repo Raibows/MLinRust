@@ -5,7 +5,7 @@ use crate::utils::RandGenerator;
 mod iris_dataset;
 mod mobile_phone_price_predict;
 mod car_price_dataset;
-mod utils;
+pub mod utils;
 pub mod dataloader;
 
 
@@ -189,13 +189,11 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         self.features = features;
         self.labels = labels;
     }
-    /// split the dataset into several subsets with a specified ratio
+    /// shuffle the dataset first then split it into several subsets with tge given ratio
     /// 
-    /// the ratio will be normalized
+    /// * ratio: will be normalized first
     /// 
     /// **WARNING**: every subsets will at least have one sample indicating that it will not exactly follow the given ratio in extreme cases
-    /// 
-    /// it will shuffle first
     pub fn split_dataset(mut self, ratio: Vec<f32>, seed: usize) -> Vec<Dataset<T>> {
         let subset_num = ratio.len();
         assert!(self.len() >= subset_num, "the dataset only has {} samples, not enough for being divided to {} sets", self.len(), subset_num);
