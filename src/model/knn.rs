@@ -9,57 +9,70 @@ pub enum KNNAlg {
     KdTree,
 }
 
-struct KdNode {
+struct KdNode<T: TaskLabelType + Copy> {
     feature_idx: usize,
     sample: Vec<f32>,
-    left: Option<Box<KdNode>>,
-    right: Option<Box<KdNode>>,
+    label: T,
+    left: Option<Box<KdNode<T>>>,
+    right: Option<Box<KdNode<T>>>,
 }
 
-struct KDTree {
-    root: Option<Box<KdNode>>,
+struct KDTree<T: TaskLabelType + Copy> {
+    root: Option<Box<KdNode<T>>>,
     minkowski_distance_p: f32,
 }
 
-impl KDTree {
+impl<T: TaskLabelType + Copy>  KDTree<T> {
     /// * features: \[batch, feature\]
+    /// * labels: \[batch\]
     /// * total_dim: total dim of the feature
     /// * p: the parameter p of [minkowski distance](https://en.wikipedia.org/wiki/Minkowski_distance)
-    fn new(features: Vec<Vec<f32>>, total_dim: usize, p: usize) -> Self {
-        Self { root:  Self::build(features, total_dim, 0), minkowski_distance_p: p as f32}
+    fn new(features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: usize) -> Self {
+        assert!(features.len() > 0 && features.len() == labels.len());
+        let feature_label_zip: Vec<(Vec<f32>, T)> = features.into_iter().zip(labels.into_iter()).map(|(f,l)| (f, l)).collect();
+
+
+        Self { root:  Self::build(feature_label_zip, total_dim, 0), minkowski_distance_p: p as f32}
     }
 
-    /// features: [batch, feature]
-    fn build(mut features: Vec<Vec<f32>>, total_dim: usize, depth: usize) -> Option<Box<KdNode>> {
-        if features.len() == 0 {
+    /// features: [batch, (feature, label)]
+    fn build(mut feature_label_zip: Vec<(Vec<f32>, T)>, total_dim: usize, depth: usize) -> Option<Box<KdNode<T>>> {
+        if feature_label_zip.len() == 0 {
             None
-        } else if features.len() == 1 {
+        } else if feature_label_zip.len() == 1 {
             let axis = depth % total_dim;
-            Some(Box::new(KdNode {feature_idx: axis, sample: features.pop().unwrap(), left: None, right: None}))
+            let (feature, label) = feature_label_zip.pop().unwrap();
+            Some(Box::new(KdNode {feature_idx: axis, label: label, sample: feature, left: None, right: None}))
         } else {
             let axis = depth % total_dim;
-            features.sort_by(|a, b| {
-                a[axis].partial_cmp(&b[axis]).unwrap()
+            feature_label_zip.sort_by(|a, b| {
+                a.0[axis].partial_cmp(&b.0[axis]).unwrap()
             });
-            let median = features.len() / 2;
-            let right_features = features.split_off(median + 1);
-            let median_s = features.pop().unwrap();
-            
-            let left = Self::build(features, total_dim, depth + 1);
-            let right = Self::build(right_features, total_dim, depth + 1);
 
-            Some(Box::new(KdNode {feature_idx: axis, sample: median_s, left: left, right: right}))
+
+            let median = feature_label_zip.len() / 2;
+
+            let right_feature_label_zip = feature_label_zip.split_off(median + 1);
+            let (median_f, median_l) = feature_label_zip.pop().unwrap();
+
+            
+            let left = Self::build(feature_label_zip, total_dim, depth + 1);
+            let right = Self::build(right_feature_label_zip, total_dim, depth + 1);
+            
+            Some(Box::new(KdNode {feature_idx: axis, label: median_l, sample: median_f, left: left, right: right}))
         }
     }
+    
     /// find the nearest node around the query
-    /// * return: (nearest_node_sample_feature, distance)
-    fn nearest(&self, query: &Vec<f32>) -> (Vec<f32>, f32) {
+    /// * return: (node_sample_feature, node_label, distance)
+    fn nearest(&self, query: &Vec<f32>) -> (Vec<f32>, T, f32) {
         // the initial best records is trivial, so borrow query
-        let records = self.recursive_nearest(&self.root, query, (query, f32::MAX));
-        (records.0.clone(), records.1)
+        let records = self.recursive_nearest(&self.root, query, (query, None, f32::MAX));
+        (records.0.clone(), records.1.unwrap(), records.2)
     }
 
-    fn recursive_nearest<'a>(&'a self, node: &'a Option<Box<KdNode>>, query: &Vec<f32>, mut best_records: (&'a Vec<f32>, f32)) -> (&Vec<f32>, f32) {
+    /// * return: (node_sample_feature, node_label, distance)
+    fn recursive_nearest<'a>(&'a self, node: &'a Option<Box<KdNode<T>>>, query: &Vec<f32>, mut best_records: (&'a Vec<f32>, Option<T>, f32)) -> (&Vec<f32>, Option<T>, f32) {
         if node.is_none() {
             best_records
         } else {
@@ -69,9 +82,10 @@ impl KDTree {
             let node = node.as_ref().unwrap();
 
             // update best records
-            if d < best_records.1 {
+            if d < best_records.2 {
                 best_records.0 = &node.sample;
-                best_records.1 = d;
+                best_records.1 = Some(node.label);
+                best_records.2 = d;
             }
 
             // find the best from subtrees
@@ -89,7 +103,7 @@ impl KDTree {
             // explore the bad side
             // only if it has probability for less than the best distance, i.e., other features except feature[axis] are equal to query (has that probability)
             // otherwise, take pruning
-            if (query[node.feature_idx] - node.sample[node.feature_idx]).abs() < best_records.1 {
+            if (query[node.feature_idx] - node.sample[node.feature_idx]).abs() < best_records.2 {
                 best_records = self.recursive_nearest(bad, query, best_records);
             }
             
@@ -139,7 +153,8 @@ mod test {
             vec![8.0, 1.0],
             vec![7.0, 2.0],
         ];
-        let tree = KDTree::new(features, 2, 2);
+        let labels = vec![0, 0, 0, 1, 1, 1];
+        let tree = KDTree::new(features, labels, 2, 2);
         let query = vec![6.0, 7.0];
         
         println!("nearest {:?}", tree.nearest(&query));
