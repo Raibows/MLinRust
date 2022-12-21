@@ -1,5 +1,24 @@
 use crate::ndarray::NdArray;
 
+/// known as:
+/// * p = 1.0: manhattan distance
+/// * p = 2.0: euclidean distance
+/// * p ~ 80.0: infinity
+pub fn minkowski_distance(x: &Vec<f32>, y: &Vec<f32>, p: f32) -> f32 {
+    assert!(x.len() == y.len());
+    // infinite
+    if p > f32::MAX.log2() / x.len() as f32 {
+        x.iter().zip(y.iter()).fold(0.0, |s, (i, j)| {
+            f32::max((i - j).abs(), s)
+        })
+    } else {
+        x.iter().zip(y.iter()).fold(0.0, |s, (i, j)| {
+            s + (i - j).abs().powf(p)
+        }).powf(1.0 / p)
+    }
+    
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Penalty {
     LassoL1(f32),
@@ -22,7 +41,7 @@ pub fn gradient_clip(grad: &mut NdArray, norm_type: &NormType) {
             (grad.data_as_vector().iter().fold(0.0, |s, i| s + i * i).sqrt(), max_norm)
         },
         NormType::Inf(max_norm) => {
-            (grad.data_as_vector().iter().fold(f32::MIN, |s, i| f32::max(s, *i)), max_norm)
+            (grad.data_as_vector().iter().fold(0.0, |s, i| f32::max(s, i.abs())), max_norm)
         }
     };
     let clip_coef = max_norm / (total_norm + 1e-6);
