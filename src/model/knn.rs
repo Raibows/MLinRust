@@ -1,12 +1,45 @@
-use crate::{dataset::{Dataset, TaskLabelType}, ndarray::NdArray};
+use std::collections::{BinaryHeap, HashMap};
+
+use crate::{dataset::{Dataset, TaskLabelType}, ndarray::{NdArray, utils::softmax}};
 
 use super::{Model, utils::minkowski_distance};
 
 
 #[derive(Debug, Clone, Copy)]
 pub enum KNNAlg {
-    BruteForce(usize),
+    BruteForce,
     KdTree,
+}
+
+/// Uniform means marjorty voting for classification task
+/// Distance means weighting ensemble based on distance
+#[derive(Debug, Clone, Copy)]
+pub enum KNNWeighting {
+    Uniform,
+    Distance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct QueryRecord<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> {
+    feature: &'a Vec<f32>,
+    label: T,
+    distance: f32,
+}
+
+impl<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> Eq for QueryRecord<'a, T> {
+    
+}
+
+impl<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> Ord for QueryRecord<'a, T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.distance.partial_cmp(&other.distance).unwrap()
+    }
+}
+
+impl<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> PartialOrd for QueryRecord<'a, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.distance.partial_cmp(&other.distance)
+    }
 }
 
 struct KdNode<T: TaskLabelType + Copy> {
@@ -20,21 +53,91 @@ struct KdNode<T: TaskLabelType + Copy> {
 struct KDTree<T: TaskLabelType + Copy> {
     root: Option<Box<KdNode<T>>>,
     minkowski_distance_p: f32,
+    k: usize,
+    weighting: KNNWeighting,
 }
 
-impl<T: TaskLabelType + Copy>  KDTree<T> {
+trait KNNInterface<T: TaskLabelType + Copy + std::cmp::PartialEq> {
+    /// * k: k nearest neighbours
+    /// * weighting: weighting the neibours, default is these neighbours are equal
     /// * features: \[batch, feature\]
     /// * labels: \[batch\]
     /// * total_dim: total dim of the feature
     /// * p: the parameter p of [minkowski distance](https://en.wikipedia.org/wiki/Minkowski_distance)
-    fn new(features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: usize) -> Self {
+    ///     * default is p = 2
+    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: Option<usize>) -> Self;
+    
+    /// find the nearest k nodes around the query
+    /// * return: ordering Vector<(node_sample_feature, node_label, distance)>, size = k
+    fn nearest<'a>(&'a self, query: &Vec<f32>) -> Vec<QueryRecord<'a, T>>;
+}
+
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq> KNNInterface<T> for KDTree<T> {
+    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: Option<usize>) -> Self {
         assert!(features.len() > 0 && features.len() == labels.len());
+        assert!(k > 0);
         let feature_label_zip: Vec<(Vec<f32>, T)> = features.into_iter().zip(labels.into_iter()).map(|(f,l)| (f, l)).collect();
 
 
-        Self { root:  Self::build(feature_label_zip, total_dim, 0), minkowski_distance_p: p as f32}
+        Self { root:  Self::build(feature_label_zip, total_dim, 0), minkowski_distance_p: p.unwrap_or(2) as f32, k: k, weighting: weighting.unwrap_or(KNNWeighting::Uniform)}
     }
 
+    fn nearest<'a>(&'a self, query: &Vec<f32>) -> Vec<QueryRecord<'a, T>> {
+        // the initial best records is trivial, so borrow query
+        assert!(self.root.is_some());
+
+        let records_heap = BinaryHeap::new();
+        let mut records_heap = self.recursive_nearest(&self.root, query, records_heap);
+        let mut nearest: Vec<QueryRecord<'a, T>>  = vec![];
+        while let Some(item) = records_heap.pop() {
+            nearest.push(item);
+        }
+        nearest.reverse();
+        nearest
+    }
+}
+
+impl Model<usize> for KDTree<usize> {
+    fn predict(&self, feature: &Vec<f32>) -> usize {
+        let res = self.nearest(feature);
+        let mut predicts: HashMap<usize, f32> = HashMap::new();
+        for item in res {
+            *predicts.entry(item.label).or_insert(0.0) += match self.weighting {
+                KNNWeighting::Distance => 1.0 / f32::max(item.distance, 1e-6),
+                KNNWeighting::Uniform => 1.0,
+            }
+        }
+        predicts.iter().fold((0, f32::MAX), |s, i| {
+            if *i.1 > s.1 {
+                (*i.0, *i.1)
+            } else {
+                s
+            }
+        }).0
+    }
+}
+
+impl Model<f32> for KDTree<f32> {
+    fn predict(&self, feature: &Vec<f32>) -> f32 {
+        let res = self.nearest(feature);
+        let weights = match self.weighting {
+            KNNWeighting::Distance => {
+                let mut a = NdArray::new(res.iter().map(|i| i.distance).collect::<Vec<f32>>());
+                softmax(&mut a, 0);
+                a.destroy().1
+            },
+            KNNWeighting::Uniform => {
+                vec![1.0 / res.len() as f32; res.len()]
+            }
+        };
+        res.iter().zip(weights.iter()).fold(0.0, |s, (i, w)| {
+            s + i.label * w
+        })
+    }
+}
+
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq>  KDTree<T> {
+    
     /// features: [batch, (feature, label)]
     fn build(mut feature_label_zip: Vec<(Vec<f32>, T)>, total_dim: usize, depth: usize) -> Option<Box<KdNode<T>>> {
         if feature_label_zip.len() == 0 {
@@ -63,18 +166,10 @@ impl<T: TaskLabelType + Copy>  KDTree<T> {
         }
     }
     
-    /// find the nearest node around the query
-    /// * return: (node_sample_feature, node_label, distance)
-    fn nearest(&self, query: &Vec<f32>) -> (Vec<f32>, T, f32) {
-        // the initial best records is trivial, so borrow query
-        let records = self.recursive_nearest(&self.root, query, (query, None, f32::MAX));
-        (records.0.clone(), records.1.unwrap(), records.2)
-    }
-
-    /// * return: (node_sample_feature, node_label, distance)
-    fn recursive_nearest<'a>(&'a self, node: &'a Option<Box<KdNode<T>>>, query: &Vec<f32>, mut best_records: (&'a Vec<f32>, Option<T>, f32)) -> (&Vec<f32>, Option<T>, f32) {
+    /// * return: MaxHeap<queryrecord>
+    fn recursive_nearest<'a>(&'a self, node: &'a Option<Box<KdNode<T>>>, query: &Vec<f32>, mut records_heap: BinaryHeap<QueryRecord<'a, T>>) -> BinaryHeap<QueryRecord<'a, T>> {
         if node.is_none() {
-            best_records
+            records_heap
         } else {
             // calculate distance from query and current node
             let d = minkowski_distance(query, &node.as_ref().unwrap().sample, self.minkowski_distance_p);
@@ -82,11 +177,16 @@ impl<T: TaskLabelType + Copy>  KDTree<T> {
             let node = node.as_ref().unwrap();
 
             // update best records
-            if d < best_records.2 {
-                best_records.0 = &node.sample;
-                best_records.1 = Some(node.label);
-                best_records.2 = d;
+            if records_heap.len() == self.k {
+                let worst_record = records_heap.peek().unwrap();
+                if worst_record.distance > d {
+                    records_heap.pop();
+                    records_heap.push(QueryRecord { feature: &node.sample, label: node.label, distance: d });
+                }
+            } else {
+                records_heap.push(QueryRecord { feature: &node.sample, label: node.label, distance: d });
             }
+            
 
             // find the best from subtrees
             // good is the one that follows the median value (less goes left, more goes right)
@@ -98,20 +198,21 @@ impl<T: TaskLabelType + Copy>  KDTree<T> {
             };
 
             // explore the good side
-            best_records = self.recursive_nearest(good, query, best_records);
+            records_heap = self.recursive_nearest(good, query, records_heap);
 
             // explore the bad side
             // only if it has probability for less than the best distance, i.e., other features except feature[axis] are equal to query (has that probability)
             // otherwise, take pruning
-            if (query[node.feature_idx] - node.sample[node.feature_idx]).abs() < best_records.2 {
-                best_records = self.recursive_nearest(bad, query, best_records);
+            let worst_record = records_heap.peek().unwrap();
+            if records_heap.len() < self.k ||
+            (query[node.feature_idx] - node.sample[node.feature_idx]).abs() < worst_record.distance {
+                records_heap = self.recursive_nearest(bad, query, records_heap);
             }
             
-            best_records
+            records_heap
         }
     }
 }
-
 
 
 /// KNN classifier implemented by [KDTree](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm)
@@ -125,23 +226,26 @@ impl KNearestNeighbor {
         Self { alg: alg }
     }
 
-    pub fn train<T: TaskLabelType + Copy>(&mut self, mut dataset: Dataset<T>) {
-        let total_dim = dataset.feature_len();
-        let mut features = NdArray::new(dataset.features);
-        features = features.permute(vec![1, 0]); // [dim, batch]
-        match self.alg {
-            KNNAlg::KdTree => {
+    pub fn train<T: TaskLabelType + Copy>(&mut self, dataset: Dataset<T>) {
+        // let total_dim = dataset.feature_len();
+        // let mut features = NdArray::new(dataset.features);
+        // features = features.permute(vec![1, 0]); // [dim, batch]
+        // match self.alg {
+        //     KNNAlg::KdTree => {
                 
-            },
-            _ => {},
-        }
+        //     },
+        //     _ => {},
+        // }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::model::Model;
+    use crate::model::knn::KNNWeighting;
+
     use super::KNearestNeighbor;
-    use super::KDTree;
+    use super::{KDTree, KNNInterface};
 
     #[test]
     fn test_kdtree() {
@@ -153,11 +257,11 @@ mod test {
             vec![8.0, 1.0],
             vec![7.0, 2.0],
         ];
-        let labels = vec![0, 0, 0, 1, 1, 1];
-        let tree = KDTree::new(features, labels, 2, 2);
+        let labels = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let tree = KDTree::new(20, Some(KNNWeighting::Distance), features, labels, 2, Some(2));
         let query = vec![6.0, 7.0];
-        
-        println!("nearest {:?}", tree.nearest(&query));
+        let results =  tree.nearest(&query);
+        println!("size {} predict {}\nnearest {:?}", results.len(), tree.predict(&query), results);
     }
 
     #[test]
