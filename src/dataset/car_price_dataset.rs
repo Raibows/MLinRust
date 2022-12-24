@@ -44,10 +44,10 @@ mod test {
         let t1: Vec<Result<f32, Box<dyn std::error::Error>>> = line1.split(" ").enumerate().map(|(_, item)| item.parse::<f32>().map_err(|e| e.into()))
         .collect();
 
-        println!("{:?} {}", t, t.len());
+        println!("{t:?} {}", t.len());
 
         let t = impute_missing_values(vec![t, t1], ImputeType::Value(f32::MAX));
-        println!("{:?} {}", t, t.len());
+        println!("{t:?} {}", t.len());
         
     }
 

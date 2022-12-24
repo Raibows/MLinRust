@@ -1,5 +1,8 @@
 use crate::{ndarray::{NdArray, utils::softmax}};
 
+/// cross entropy loss, as a special nn module
+/// * loss: records of each sample in a forward call
+/// * avg_loss: avg loss of the batch
 pub struct CrossEntropyLoss {
     pub loss: Vec<f32>,
     pub avg_loss: f32,
@@ -13,9 +16,9 @@ impl CrossEntropyLoss {
 
     /// calculate the loss
     /// 
-    /// logits: the direct output of forward (without softmax)
+    /// logits(WITHOUT softmax): the direct output of nn forward
     ///  
-    /// return: grad for back propagation
+    /// return: the initial grad for back propagation
     pub fn forward(&mut self, mut logits: NdArray, label: &Vec<usize>) -> NdArray {
         softmax(&mut logits, -1);
 
@@ -31,6 +34,9 @@ impl CrossEntropyLoss {
     }
 }
 
+/// mean squared error, as a special nn module
+/// * loss: records of each sample in a forward call
+/// * avg_loss: avg loss of the batch
 pub struct MeanSquaredError {
     pub loss: Vec<f32>,
     pub avg_loss: f32,
@@ -43,9 +49,9 @@ impl MeanSquaredError {
 
     /// calculate the mean squared error
     /// 
-    /// logits: the direct output of forward (you don't need it in training, so take the owner here)
+    /// logits: the direct output of forward (you usually don't need it in training, so take the owner here)
     ///  
-    /// return: grad for back propagation
+    /// return: the initial grad for back propagation
     pub fn forward(&mut self, mut logits: NdArray, label: &Vec<f32>) -> NdArray {
         self.loss = label.iter().enumerate().map(|(i, l)| (logits[i][0] - l).powf(2.0)).collect();
         self.avg_loss = self.loss.iter().fold(0.0, |s, i| s + *i) / label.len() as f32;

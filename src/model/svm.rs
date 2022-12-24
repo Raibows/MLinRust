@@ -111,7 +111,7 @@ impl SupportVectorMachine {
             if verbose {
                 let width = ">".repeat(ep * 50 / epoch);
                 let (_, acc) = evaluate(&mut dataloader, self);
-                print!("\r{:-<50}epoch\t{}/{}\ttrain_acc {:.3}\tmargin {:.3}\tloss {:.3}", width, ep, epoch, acc, 1.0/structure_loss, hinge_loss);
+                print!("\r{width:-<50}epoch\t{ep}/{epoch}\ttrain_acc {acc:.3}\tmargin {:.3}\tloss {hinge_loss:.3}", 1.0/structure_loss);
                 stdout().flush()?;
             }
             
@@ -123,7 +123,7 @@ impl SupportVectorMachine {
                 });
                 let old = self.lr;
                 if early_stop && (decrease > 0.5 || self.lr < 1e-5) {
-                    println!("\nearly stopping! Last 10 epoch loss {:?}", last_eps_record);
+                    println!("\nearly stopping! Last 10 epoch loss {last_eps_record:?}");
                     break;
                 } else if decrease > -0.05 {
                     self.lr *= 0.9; // discount lr
@@ -133,7 +133,7 @@ impl SupportVectorMachine {
                 }
                 last_eps_record.clear();
                 if verbose && old != self.lr {
-                    println!("\nadjust lr from {:.3e} to {:.3e}", old, self.lr);
+                    println!("\nadjust lr from {old:.3e} to {:.3e}", self.lr);
                 }
             }
         }
@@ -182,17 +182,17 @@ mod test {
         let dataset = Dataset::new(datas, labels, Some(label_map));
 
         let mut model = SupportVectorMachine::new(2, dataset.feature_len(), 1e-1, None, 1.0);
-        model.train(dataset.clone(), 1000, SVMLoss::Hinge, true, false)?;
+        model.train(dataset.clone(), 1000, SVMLoss::Hinge, true, true)?;
 
         fn get_2d_line_w_b(model: &SupportVectorMachine) {
             let w = -model.weight[0][0] / model.weight[0][1];
             let b = -model.bias[0][0] / model.weight[0][1];
-            println!("{}x + {}", w, b);
+            println!("{w}x + {b}");
         }
         get_2d_line_w_b(&model);
 
         let (correct, acc) = evaluate(&dataset, &model);
-        println!("correct {} acc {}", correct, acc);
+        println!("correct {correct} acc {acc}");
 
         Ok(())
     }

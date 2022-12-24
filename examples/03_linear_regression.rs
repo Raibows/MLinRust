@@ -27,7 +27,7 @@ fn main() -> std::io::Result<()> {
             let mean_abs_error = evaluate_regression(&test_dataset, &model);
             error_records.push(mean_abs_error);
             let width = ">".repeat(ep * 50 / EPOCH);
-            print!("\r{:-<50}\t{:.3}\t{:.3}", width, losses.iter().sum::<f32>() / losses.len() as f32, mean_abs_error);
+            print!("\r{width:-<50}\t{:.3}\t{mean_abs_error:.3}", losses.iter().sum::<f32>() / losses.len() as f32);
             stdout().flush()?;
         }
         let (best_ep, best_error) = error_records.iter().enumerate().fold((0, f32::MAX), |s, (i, e)| {
@@ -37,7 +37,7 @@ fn main() -> std::io::Result<()> {
                 s
             }
         });
-        println!("\n{:?}\nbest ep {} best mean abs error {:.5}", error_records, best_ep, best_error);
+        println!("\n{error_records:?}\nbest ep {best_ep} best mean abs error {best_error:.5}");
 
         Ok(())
 }

@@ -26,9 +26,9 @@ fn main() {
     model.train(&train_dataset);
 
     let (correct, acc) = evaluate(&train_dataset, &model);
-    println!("train set correct {} / {}, acc = {}", correct, train_dataset.len(), acc);
+    println!("train set correct {correct} / {}, acc = {acc:.3}", train_dataset.len());
 
     let (correct, acc) = evaluate(&test_dataset, &model);
-    println!("test set correct {} / {}, acc = {}", correct, test_dataset.len(), acc);
+    println!("test set correct {correct} / {}, acc = {acc:.3}", test_dataset.len());
     assert!(acc > 0.75);
 }

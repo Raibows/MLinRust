@@ -63,7 +63,7 @@ mod test {
         // step 1
         for _ in 0..5 {
             let loss = model.one_step(&batch_of_feature, &label, 1e-1, None);
-            println!("loss {:?} {} {}", loss, model.predict(&datas[0]) == label[0], model.predict(&datas[1]) == label[1]);
+            println!("loss {loss:?} {} {}", model.predict(&datas[0]) == label[0], model.predict(&datas[1]) == label[1]);
         }
     }
 }

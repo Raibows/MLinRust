@@ -374,7 +374,7 @@ mod test {
         let tree = KDTree::new(20, Some(KNNWeighting::Distance), features, labels, 2, Some(2));
         let query = vec![6.0, 7.0];
         let results =  tree.nearest(&query);
-        println!("size {} predict {}\nnearest {:?}", results.len(), tree.predict(&query), results);
+        println!("size {} predict {}\nnearest {results:?}", results.len(), tree.predict(&query));
     }
 
     #[test]
@@ -391,7 +391,7 @@ mod test {
         let tree = BruteForceSearch::new(20, Some(KNNWeighting::Distance), features, labels, Some(2));
         let query = vec![6.0, 7.0];
         let results =  tree.nearest(&query);
-        println!("size {} predict {}\nnearest {:?}", results.len(), tree.predict(&query), results);
+        println!("size {} predict {}\nnearest {results:?}", results.len(), tree.predict(&query));
     }
 
     #[test]

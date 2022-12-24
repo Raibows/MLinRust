@@ -120,16 +120,16 @@ mod test {
         for _ in 0..5 {
             let mut criterion = MeanSquaredError::new();
             let outs = l1.forward(&x, true);
-            println!("out1 {}", outs);
+            println!("out1 {outs}");
             let outs = l2.forward(&outs, true);
-            println!("out2 {}", outs);
+            println!("out2 {outs}");
 
             let loss = criterion.forward(outs, &target);
-            println!("loss {}", loss);
+            println!("loss {loss}");
             let bp_grad = l2.backward(loss);
-            println!("bp_grad1 {}", bp_grad);
+            println!("bp_grad1 {bp_grad}");
             let bp_grad = l1.backward(bp_grad);
-            println!("bp_grad2 {}", bp_grad);
+            println!("bp_grad2 {bp_grad}");
             println!("l1 weight grad {}", l2.grad_w);
             println!("l1 bias grad {}", l2.grad_b);
             l2.step(4, 1e-1, None);

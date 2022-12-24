@@ -29,6 +29,7 @@ impl<'a, T: TaskLabelType + Copy> Iterator for BatchIterator<T> {
     }
 }
 
+/// dataset, &dataset or &mut dataset
 pub trait DatasetBorrowTrait<T: TaskLabelType + Copy> {
     fn total_len(&self) -> usize;
 
@@ -64,7 +65,11 @@ impl<T: TaskLabelType + Copy> DatasetBorrowTrait<T> for &Dataset<T> {
 
 
 impl<T: TaskLabelType + Copy, E: DatasetBorrowTrait<T>> Dataloader<T, E> {
-
+    /// convert a dataset to Dataloader for batch iterations
+    /// * E: Dataset or &Dataset for both f32(regression) and usize(classification)
+    /// * shuffle: whether shuffle the dataset for each Iteration of Dataloader
+    ///     * **WARNING**: you should not shuffle a evaluation dataset since evaluate often accepts a non mut reference, it will cause panic
+    /// * seed: default is set to 0
     pub fn new(dataset: E, batch_size: usize, shuffle: bool, seed: Option<usize>) -> Self {
         Self { batch_size: batch_size, shuffle: shuffle, raw_dataset: dataset, rng: RandGenerator::new(seed.unwrap_or(0)), phantom: PhantomData}
     }
@@ -86,6 +91,7 @@ impl<T: TaskLabelType + Copy, E: DatasetBorrowTrait<T>> Dataloader<T, E> {
         })
     }
 
+    /// expicitly create a batch iterator if you don't want it into iter
     pub fn iter_mut(&mut self) -> BatchIterator<T> {
         let (features, labels) = self.init_batches();
         BatchIterator {
@@ -109,12 +115,12 @@ mod test {
         println!("epoch 1 ----------------------------");
         for batch in dataloader.iter_mut() {
             let (_, label) = batch;
-            println!("{:?}", label);
+            println!("{label:?}");
         }
         println!("epoch 2 ----------------------------");
         for batch in dataloader.iter_mut() {
             let (_, label) = batch;
-            println!("{:?}", label);
+            println!("{label:?}");
         }
     }
 }

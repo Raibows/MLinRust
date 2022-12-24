@@ -39,6 +39,8 @@ pub struct NeuralNetwork {
 }
 
 impl NeuralNetwork {
+    /// create a neural network from the given ModuleList
+    /// * blocks: vector of enum NNModule
     pub fn new(blocks: Vec<NNmodule>, ) -> Self {
         assert!(blocks.len() > 0);
         let mut layers = vec![];
@@ -57,8 +59,10 @@ impl NeuralNetwork {
         }
     }
 
-    pub fn weight_init(&mut self) {
-        let mut rng = RandGenerator::new(0);
+    /// init the weights with random number from [0, 1.0]
+    /// * seed: default is set to 0
+    pub fn weight_init(&mut self, seed: Option<usize>) {
+        let mut rng = RandGenerator::new(seed.unwrap_or(0));
         for nn in self.layers.iter_mut() {
             nn.weight_mut_borrow().iter_mut().for_each(|i| *i = rng.gen_f32());
         }
@@ -128,7 +132,7 @@ mod test {
         let datas = NdArray::new(datas);
         let label = vec![0usize, 1];
         let mut model = NeuralNetwork::new(vec![NNmodule::Linear(5, 3, None), NNmodule::Relu, NNmodule::Linear(3, 2, None)]);
-        model.weight_init();
+        model.weight_init(None);
 
         let mut criterion = criterion::CrossEntropyLoss::new();
 

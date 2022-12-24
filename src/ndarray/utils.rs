@@ -230,10 +230,10 @@ mod test {
         let mut x = NdArray::new(vec![1.0, -123.0, 5.8, 2.3, 11.3, 5.0]);
         x.reshape(vec![2, 3]);
         let t = argmax(&x, -1);
-        println!("argmax {}", x);
+        println!("argmax {x}");
         let tt = NdArray::new(vec![2.0, 1.0]);
         assert!(tt == t);
-        println!("{}", t);
+        println!("{t}");
     }
 
 
@@ -242,13 +242,13 @@ mod test {
         let x = NdArray::new(vec![vec![1.0; 3]; 2]);
         let t = sum_ndarray(&x, 0);
         assert_eq!(NdArray::new(vec![2.0, 2.0, 2.0]), t);
-        println!("{}", t);
+        println!("{t}");
 
         let mut x = NdArray::new((0..12).map(|i| i as f32).collect::<Vec<f32>>());
         x.reshape(vec![2, 3, 2]);
         let t = sum_ndarray(&x, 1);
         assert!(t.shape == vec![2, 2]);
-        println!("{}", t);
+        println!("{t}");
     }
 
     #[test]
@@ -256,11 +256,11 @@ mod test {
         // example 1
         let mut x = NdArray::new(vec![vec![1.0; 3]; 2]);
         softmax(&mut x, -1);
-        println!("{}", x);
+        println!("{x}");
 
         // example 2
         softmax(&mut x, -2);
-        println!("{}", x);
+        println!("{x}");
 
         // example 3
         let mut x = NdArray::new(vec![vec![1.1, -3.7, 341.23, 46.6], vec![3.23, 6.2, 0.4, -2.87]]);
@@ -269,7 +269,7 @@ mod test {
             vec![0.0, 0.0, 1.0, 0.0],
             vec![0.048654296, 0.94836545, 0.002871229, 0.000109125154]
           ]);
-        println!("{}", x);
+        println!("{x}");
         assert_eq!(xx, x);
     }
 
@@ -278,7 +278,7 @@ mod test {
         // let a = NdArray::default();
         // mean(&a, 0); // assert error, since default has no data
         let a = NdArray::random(vec![2, 3], None);
-        println!("{}\nmean:{}\nstd:{}", a, mean(&a, 1), std(&a, 1, true));
+        println!("{a}\nmean:{}\nstd:{}", mean(&a, 1), std(&a, 1, true));
 
         println!("min{}\nmax{}", min(&a, 1), max(&a, 1));
 

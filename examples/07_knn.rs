@@ -16,5 +16,5 @@ fn main() {
     println!("model training done!");
 
     let (correct, acc) = evaluate(&test_dataset, &model);
-    println!("evaluate results\ncorrect {} / total {}, acc = {:.5}", correct, test_dataset.len(), acc);
+    println!("evaluate results\ncorrect {correct} / total {}, acc = {acc:.5}", test_dataset.len());
 }

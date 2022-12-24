@@ -9,7 +9,6 @@ pub fn process_iris_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Option<
     let mut label_map: HashMap<String, usize> = HashMap::new();
     lines.next();
     for line in lines {
-        // println!("{i}\t\t🚗{:?}🚗", l);
 
         if line.len() == 0 {
             continue;

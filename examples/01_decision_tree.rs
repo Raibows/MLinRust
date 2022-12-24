@@ -3,8 +3,6 @@ use mlinrust::model::decision_tree::{DecisionTree, InfoGains};
 use mlinrust::utils::evaluate;
 
 fn main() {
-    println!("Hello, world!");
-
     let path = ".data/MobilePhonePricePredict/train.csv";
 
     let dataset = Dataset::<usize>::from_name(path, DatasetName::MobilePhonePricePredictDataset, None);
@@ -19,5 +17,5 @@ fn main() {
     model.print_self(&model.root, 0);
 
     let (correct, acc) = evaluate(&test_dataset, &model);
-    println!("evaluate results\ncorrect {} / total {}, acc = {:.5}", correct, test_dataset.len(), acc);
+    println!("evaluate results\ncorrect {correct} / total {}, acc = {acc:.5}", test_dataset.len());
 }

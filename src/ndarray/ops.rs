@@ -328,7 +328,7 @@ mod test {
         a.reshape(vec![2, 3]);
         let d = &mut a[0];
         d.iter_mut().for_each(|i| *i = -*i);
-        println!("{:?}", a);
+        println!("{a:?}");
         let mut aa = NdArray::new(vec![-1.0, -2.0, -3.0, 4.0, 5.0, 6.0]);
         aa.reshape(vec![2, 3]);
         assert_eq!(aa, a);
@@ -348,7 +348,7 @@ mod test {
         let c = &a + &b;
         let mut cc = NdArray::new(vec![0.0, 0.0, 0.0, 3.0, 3.0, 3.0]);
         cc.reshape(vec![2, 3]);
-        println!("a = {:?}\nb = {:?}\na+b = {:?}", a, b, c);
+        println!("a = {a:?}\nb = {b:?}\na+b = {c:?}");
         assert_eq!(cc, c);
     }
 
@@ -378,9 +378,9 @@ mod test {
         a.reshape(vec![2, 3]);
         let mut b = NdArray::new(vec![-1.0, -2.0, -3.0]);
         b.reshape(vec![3, 1]);
-        println!("a = {:?}\nb = {:?}", a, b);
+        println!("a = {a:?}\nb = {b:?}");
         let c =  a * b;
-        println!("a * b = {:?}", c);
+        println!("a * b = {c:?}");
         let mut cc = NdArray::new(vec![-14.0, -32.0]);
         cc.reshape(vec![2, 1]);
         assert_eq!(c, cc);
@@ -393,9 +393,9 @@ mod test {
         a.reshape(vec![2, 3, 2]);
         let mut b = NdArray::new(vec![0.0, -1.0]);
         b.reshape(vec![2, 1]);
-        println!("a = {:?}\nb = {:?}", a, b);
+        println!("a = {a:?}\nb = {b:?}");
         let c = a * b;
-        println!("a * b = {:?}", c);
+        println!("a * b = {c:?}");
         let mut cc = NdArray::new(vec![-1.0, -3.0, -5.0, -7.0, -9.0, -11.0]);
         cc.reshape(vec![2, 3, 1]);
         assert_eq!(cc, c);
@@ -408,9 +408,9 @@ mod test {
         a.reshape(vec![1, 2, 3, 2]);
         let mut b = NdArray::new(vec![0.0, -1.0, 1.0, 0.0]);
         b.reshape(vec![2, 2, 1]);
-        println!("a = {:?}\nb = {:?}", a, b);
+        println!("a = {a:?}\nb = {b:?}");
         let c = a * b;
-        println!("a * b = {:?}", c);
+        println!("a * b = {c:?}");
         let mut cc = NdArray::new(vec![-1.0, -3.0, -5.0, 6.0, 8.0, 10.0]);
         cc.reshape(vec![1, 2, 3, 1]);
         assert_eq!(cc, c);
@@ -429,7 +429,7 @@ mod test {
         let start = Instant::now();
         let _ = a * b;
         let dur = start.elapsed();
-        println!("execute {:?}", dur);
+        println!("execute {dur:?}");
         assert!(dur < Duration::from_secs_f32(50.0));
     }
 

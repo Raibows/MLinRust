@@ -60,6 +60,10 @@ impl TaskLabelType for usize {}
 
 pub trait FromPathDataset {
     type Output;
+    /// load a dataset with the existing recipe
+    /// * path: the path to the data files
+    /// * name: loading recipe name
+    /// * fill_missing_value: strategy of filling missing values in the dataset
     fn from_name(path: &str, name: DatasetName, fill_missing_value: Option<utils::ImputeType>) -> Self::Output;
 
     fn read_data_from_file(path: &str) -> std::io::Result<String> {
@@ -191,9 +195,9 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
     }
     /// shuffle the dataset first then split it into several subsets with tge given ratio
     /// 
-    /// * ratio: will be normalized first
+    /// * ratio: the ratios of the subsets, it will be normalized first
     /// 
-    /// **WARNING**: every subsets will at least have one sample indicating that it will not exactly follow the given ratio in extreme cases
+    /// **WARNING**: each subset will at least have one sample indicating that it will not exactly follow the given ratio in extreme cases
     pub fn split_dataset(mut self, ratio: Vec<f32>, seed: usize) -> Vec<Dataset<T>> {
         let subset_num = ratio.len();
         assert!(self.len() >= subset_num, "the dataset only has {} samples, not enough for being divided to {} sets", self.len(), subset_num);
@@ -236,10 +240,10 @@ mod test {
         let path = ".data/IRIS.csv";
         let dataset = Dataset::<usize>::from_name(path, DatasetName::IrisDataset, None);
         for (x, y) in &dataset {
-            println!("{:?} {}", x, y);
+            println!("{x:?} {y}");
         }
         for (x, y) in &dataset {
-            println!("{:?} {}", x, y);
+            println!("{x:?} {y}");
         }
     }
 
@@ -252,7 +256,7 @@ mod test {
         for dataset in res {
             println!("size {} / 10", dataset.len());
             for (_, l) in &dataset {
-                print!("{} ", l);
+                print!("{l} ");
             }
             print!("\n");
         }

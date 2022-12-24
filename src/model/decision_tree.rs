@@ -64,7 +64,7 @@ impl TaskConditionedReturn<usize> for Dataset<usize> {
             _ => {assert!(false, "you should use gini or entropy!"); 0.0},
         };
         if cfg!(test) {
-            println!("{:?} {}", rations_by_label, info);
+            println!("{rations_by_label:?} {info}");
         }
         info
     }
@@ -152,7 +152,7 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
                     (left_dataset.len() as f32 / dataset.len() as f32) * left_dataset.calculate_information(&self.info_gain_type) - 
                     (right_dataset.len() as f32 / dataset.len() as f32) * right_dataset.calculate_information(&self.info_gain_type);
                     if cfg!(test) {
-                        println!("debug current info gain {}", current_info_gains);
+                        println!("debug current info gain {current_info_gains}");
                     }
                     if current_info_gains > best_splits.0 {
                         best_splits = (current_info_gains, fi, *threshold, Some(left_dataset), Some(right_dataset));
@@ -202,11 +202,11 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
             let width = " ".repeat(depth * 7) + "-------";
             let t = node.as_ref().unwrap();
             if t.value.is_some() {
-                println!("{} {} VALUE: {}", depth, width, t.value.unwrap());
+                println!("{depth} {width} VALUE: {}", t.value.unwrap());
             } else {
-                println!("{} {} LEFT : F{:0>3} < {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
+                println!("{depth} {width} LEFT : F{:0>3} < {}", t.feature_idx.unwrap(), t.threshold.unwrap());
                 self.print_self(&node.as_ref().unwrap().as_ref().left, depth + 1);
-                println!("{} {} RIGHT: F{:0>3} ≥ {}", depth, width, t.feature_idx.unwrap(), t.threshold.unwrap());
+                println!("{depth} {width} RIGHT: F{:0>3} ≥ {}", t.feature_idx.unwrap(), t.threshold.unwrap());
                 self.print_self(&node.as_ref().unwrap().as_ref().right, depth + 1);
             }
         }
@@ -236,8 +236,6 @@ mod test {
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
         dct.train(temp_dataset);
         dct.print_self(&dct.root, 0);
-
-        assert!(false);
     }
 
     #[test]
@@ -253,7 +251,7 @@ mod test {
         dct.print_self(&dct.root, 0);
 
         let (correct, acc) = evaluate(&test_dataset, &dct);
-        println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
+        println!("correct {correct} / test {}, acc = {acc}", test_dataset.len());
 
         assert!(acc > 0.7);
     }
@@ -271,7 +269,7 @@ mod test {
         dct.print_self(&dct.root, 0);
 
         let (correct, acc) = evaluate(&test_dataset, &dct);
-        println!("correct {} / test {}, acc = {}", correct, test_dataset.len(), acc);
+        println!("correct {correct} / test {}, acc = {acc}", test_dataset.len());
 
         assert!(acc > 0.7)
     }
@@ -289,6 +287,6 @@ mod test {
         dct.print_self(&dct.root, 0);
 
         let abs_error = evaluate_regression(&test_dataset, &dct);
-        println!("mean absolute error {:.5}", abs_error);
+        println!("mean absolute error {abs_error:.5}");
     }
 }

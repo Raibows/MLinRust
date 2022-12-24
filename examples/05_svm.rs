@@ -23,7 +23,7 @@ fn main() -> std::io::Result<()> {
     model.train(dataset.clone(), 1000, SVMLoss::Hinge, true, true)?;
 
     let (correct, acc) = evaluate(&dataset, &model);
-    println!("correct {}/{} acc {}", correct, dataset.len(), acc);
+    println!("correct {correct}/{} acc {acc}", dataset.len());
 
     Ok(())
 }

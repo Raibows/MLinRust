@@ -19,5 +19,5 @@ fn main() {
     let start = Instant::now();
     let _ = a * b; // large matrix multiplication
     let dur = start.elapsed();
-    println!("execute {:?}", dur);
+    println!("execute {dur:?}");
 }

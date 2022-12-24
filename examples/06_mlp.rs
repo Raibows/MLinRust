@@ -25,13 +25,13 @@ fn main() -> std::io::Result<()> {
         NNmodule::Linear(16, 1, None)
     ];
     let mut model = NeuralNetwork::new(blocks);
-    model.weight_init();
+    model.weight_init(None);
     let mut criterion = MeanSquaredError::new();
 
     let mut train_dataloader = Dataloader::new(train_dataset, 64, true, Some(0));
     let mut test_dataloader = Dataloader::new(test_dataset, 128, false, None);
 
-    const EPOCH: usize = 100;
+    const EPOCH: usize = 10;
     let mut error_records = vec![];
 
     // let start = Instant::now();
@@ -58,7 +58,7 @@ fn main() -> std::io::Result<()> {
         let test_time = Instant::now() - start;
         error_records.push(mean_abs_error);
         let width = ">".repeat(ep * 50 / EPOCH);
-        print!("\r{:-<50}\t{:.3}\t{:.3}\t", width, losses.iter().sum::<f32>() / losses.len() as f32, mean_abs_error);
+        print!("\r{width:-<50}\t{:.3}\t{mean_abs_error:.3}\t", losses.iter().sum::<f32>() / losses.len() as f32);
         println!("\ntime cost train {:.3} test {:.3}", train_time.as_secs_f64(), test_time.as_secs_f64());
         stdout().flush()?;
     }
@@ -69,7 +69,7 @@ fn main() -> std::io::Result<()> {
             s
         }
     });
-    println!("\n{:?}\nbest ep {} best mean abs error {:.5}", error_records, best_ep, best_error);
+    println!("\n{error_records:?}\nbest ep {best_ep} best mean abs error {best_error:.5}");
 
     Ok(())
 }

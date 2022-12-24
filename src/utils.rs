@@ -170,6 +170,6 @@ mod test {
 
         let mut a: Vec<usize> = (0..10).collect();
         rng.shuffle(&mut a);
-        println!("{:?}", a);
+        println!("{a:?}");
     }
 }
