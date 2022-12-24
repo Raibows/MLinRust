@@ -1,5 +1,6 @@
 use super::NdArray;
 
+/// check whether the i32 dim (can be either forward or reverse indexing) is legal for max_dim
 pub fn check_dim_is_legal(dim: i32, max_dim: usize) -> usize {
     // check if dim is legal
     // convert potential negative dimension index to usize
@@ -12,6 +13,7 @@ pub fn check_dim_is_legal(dim: i32, max_dim: usize) -> usize {
     }
 }
 
+/// the base worker function; it will be called by gather_by_a_specific_dim_and_do
 fn collect_by_recursive_then_gather_to<F>(pos: usize, max_dim: usize, dim_op_on: usize, src_idx: usize, tgt_idx: usize, src_base_sizes: &Vec<usize>, tgt_base_sizes: &Vec<usize>, shapes: &Vec<usize>, src_data: &Vec<f32>, tgt_data: &mut Vec<f32>, gather: &F) 
 where F: Fn(Vec<&f32>) -> f32 
 {
@@ -38,6 +40,10 @@ where F: Fn(Vec<&f32>) -> f32
     }
 }
 
+/// use for kind of squezzing operations for the specific dim; fix other dimensions, then traverse and collect the specific dim to a Vec
+/// * Example:
+///     - argmax: vector -> single element
+///     - mean: vector -> single element
 fn gather_by_a_specific_dim_and_do(x: &NdArray, dim: i32, gather: &dyn Fn(Vec<&f32>) -> f32) -> NdArray {
     // squeeze this dim, and gather [....] to f32
     // e.g., sum by dim, argmax by dim, etc.
@@ -60,7 +66,7 @@ fn gather_by_a_specific_dim_and_do(x: &NdArray, dim: i32, gather: &dyn Fn(Vec<&f
     target
 }
 
-
+/// inplace operation: softmax the given specific dim
 pub fn softmax(x: &mut NdArray, dim: i32) {
     let dim = check_dim_is_legal(dim, x.dim());
 
@@ -101,6 +107,7 @@ pub fn softmax(x: &mut NdArray, dim: i32) {
     retrieval_by_recursive(0, x.dim(), dim, 0, &index_base_sizes, &x.shape, &mut x.data);
 }
 
+/// non-inplace operation: sum the given specific dim
 pub fn sum_ndarray(x: &NdArray, dim: i32) -> NdArray {
     fn sum_value(src_data: Vec<&f32>) -> f32 {
         src_data.iter().fold(0.0, |s, i| s + **i)
@@ -108,6 +115,7 @@ pub fn sum_ndarray(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &sum_value)
 }
 
+/// non-inplace operation: argmax
 pub fn argmax(x: &NdArray, dim: i32) -> NdArray {
     // since NdArray has not implemented the template for usize, so we have to return NdArray<f32> instead
     // todo
@@ -123,6 +131,7 @@ pub fn argmax(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &get_arg_by_max)
 }
 
+/// non-inplace operation: mean
 pub fn mean(x: &NdArray, dim: i32) -> NdArray {
     fn avg_value(src_data: Vec<&f32>) -> f32 {
         src_data.iter().fold(0.0, |s, i| s + **i) / src_data.len() as f32
@@ -130,6 +139,7 @@ pub fn mean(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &avg_value)
 }
 
+/// non-inplace operation: min element of the specific dim
 pub fn min(x: &NdArray, dim: i32) -> NdArray {
     fn min_value(src_data: Vec<&f32>) -> f32 {
         src_data.iter().fold(f32::MAX, |s, i| s.min(**i))
@@ -137,6 +147,7 @@ pub fn min(x: &NdArray, dim: i32) -> NdArray {
     gather_by_a_specific_dim_and_do(x, dim, &min_value)
 }
 
+/// non-inplace operation: max element of the specific dim
 pub fn max(x: &NdArray, dim: i32) -> NdArray {
     fn max_value(src_data: Vec<&f32>) -> f32 {
         src_data.iter().fold(f32::MIN, |s, i| s.max(**i))

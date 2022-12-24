@@ -1,5 +1,8 @@
 use super::NdArray;
 
+/// this is an non-in-place version of universal ops
+/// 
+/// ops: do something to &mut left element with &right element
 pub fn universal_ops<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &NdArray, rhs: &NdArray, ops: F) -> NdArray {
     assert!(NdArray::can_broadcast(&lhs.shape, &rhs.shape), "{:?} cannot be broadcasted by {:?}", lhs.shape, rhs.shape);
     let mut temp = lhs.clone();
@@ -7,6 +10,11 @@ pub fn universal_ops<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &NdArray, rhs: &NdAr
     temp
 }
 
+/// ops: do something to &mut left element with &right element
+/// * use:
+///     - point product
+///     - add
+///     - sub
 pub fn universal_ops_inplace<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &mut NdArray, rhs: &NdArray, mut ops: F) {
     assert!(NdArray::can_broadcast(&lhs.shape, &rhs.shape), "{:?} cannot be broadcasted by {:?}", lhs.shape, rhs.shape);
     let original_shape = lhs.shape.clone();
@@ -24,11 +32,7 @@ pub fn universal_ops_inplace<F: FnMut((&mut f32, &f32)) -> ()>(lhs: &mut NdArray
 
 impl PartialEq for NdArray {
     fn eq(&self, other: &Self) -> bool {
-        if self.shape == other.shape {
-            self.data == other.data
-        } else {
-            false
-        }
+        self.shape == other.shape && self.data == other.data
     }
 }
 
@@ -297,6 +301,9 @@ impl NdArrayMultiplyTrait for f32 {
 // &a * (b | &b)
 impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for &NdArray {
     type Output = NdArray;
+    /// **this operator is for matrix multiplication**
+    /// 
+    /// see **point_multiply** method if you want Hadamard Product
     fn mul(self, rhs: T) -> Self::Output {
         rhs.multiply(self)
     }
@@ -305,6 +312,9 @@ impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for &NdArray {
 // a * (b | &b)
 impl<T: NdArrayMultiplyTrait> std::ops::Mul<T> for NdArray {
     type Output = NdArray;
+    /// **multiply operator is matrix multiplication**
+    /// 
+    /// see **point_multiply** method if you want Hadamard Product
     fn mul(self, rhs: T) -> Self::Output {
         rhs.multiply(&self)
     }

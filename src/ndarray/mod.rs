@@ -147,16 +147,27 @@ impl std::fmt::Display for NdArray {
 }
 
 impl Default for NdArray {
+    /// return an ndarray with NULL data NULL shape, be careful!
+    /// 
+    /// **WARNING**: deprecated
     fn default() -> Self {
         Self { shape: vec![], data: vec![] }
     }
 }
 
 impl NdArray {
+    /// create an NdArray filled with 0.0 by given arg
+    /// * arg: 
+    ///     - Vec\<usize\>: as the shape
+    ///     - Vec\<f32\>: as the data, (1d) vector
+    ///     - Vec\<Vec\<f32\>\>: as the data, (2d) matrix
     pub fn new<T: NdArrayNewTrait>(arg: T) -> Self {
         arg.new()
     }
 
+    /// create an NdArray filled with random numbers by the given shape and seed
+    /// * shape: specify the shape
+    /// * seed: default is set to 0
     pub fn random(shape: Vec<usize>, seed: Option<usize>) -> Self {
         let mut rng = RandGenerator::new(seed.unwrap_or(0));
         let data: Vec<f32> = (0..NdArray::total_num(&shape)).map(|_| rng.gen_f32()).collect();
@@ -164,18 +175,27 @@ impl NdArray {
         a
     }
 
+    /// return the dimension, i.e., self.shape.len()
     pub fn dim(&self) -> usize {
         self.shape.len()
     }
 
+    /// reshape the NdArray, note that the total elements of it need to be equal to the original shape's
+    /// * shape:
+    ///     - Vec\<usize\>: positive number
+    ///     - Vec\<i32\>: you can specify at most one dim with -1, then that dim is decided by the others 
     pub fn reshape<T: ReshapeTrait>(&mut self, shape: T) {
         self.shape = shape.reshape(&self.shape);
     }
 
+    /// return total num of elements of the given the shape
     pub fn total_num(v: &Vec<usize>) -> usize {
         v.iter().fold(1, |s, i| s * i)
     }
-
+    
+    /// judge whether lhs can be broadcasted by rhs
+    /// 
+    /// it often needs the shape of rhs to be a (continuous and from right to left) subset of lhs's shape
     fn can_broadcast(lhs: &Vec<usize>, rhs: &Vec<usize>) -> bool {
         if lhs.len() < rhs.len() ||
         Self::total_num(lhs) < Self::total_num(rhs) {
@@ -192,6 +212,12 @@ impl NdArray {
         }
     }
 
+    /// return the index bases for each dimension by given the shape
+    /// 
+    /// Example: 
+    ///     - shape: \[2, 3, 4\]
+    ///     - return: \[12, 4, 1\]
+    ///     - use: get the data of a index \[0, 1, 2\] by indexing data\[0x12 + 1x4 + 2x1\]
     pub fn index_base_sizes(shape: &Vec<usize>) -> Vec<usize> {
         // help you to calculate the index of data
         let mut sizes: Vec<usize> = shape.iter().rev().fold(vec![1], |mut s, i| {
@@ -203,7 +229,9 @@ impl NdArray {
         sizes
     }
 
-    /// faster than original permute(implemented by recursive call) 20x
+    /// rearrange the dimension (axis); faster than original permute(implemented by recursive call) 20x
+    ///
+    /// think about the matrix transpose
     pub fn permute(&self, order: Vec<usize>) -> NdArray {
         // check whether the order is valid
         // e.g., transpose [0, 1] -> [1, 0]
@@ -341,11 +369,16 @@ impl NdArray {
 
     //     target
     // }
-
+    
+    /// set all elements to 0.0
     pub fn clear(&mut self) {
         self.data.iter_mut().for_each(|i| *i = 0.0);
     }
 
+    /// squeeze the specify dimension
+    /// * dim: a negative number means you can use the reverse ordering
+    /// note that the shape of specified dim needs to be strictly 1, otherwise panic
+    ///  
     pub fn squeeze(&mut self, dim: i32) {
         let udim = check_dim_is_legal(dim, self.dim());
         assert!(self.shape[udim] == 1, "the shape is {:?}, shape[dim={}] = {} != 1", self.shape, udim, self.shape[udim]);
@@ -364,18 +397,22 @@ impl NdArray {
         self.shape = insert_sizes;
     }
 
+    /// take self, return (shape, 1d data)
     pub fn destroy(self) -> (Vec<usize>, Vec<f32>) {
         (self.shape, self.data)
     }
 
+    /// data borrowed as mutable
     pub fn data_as_mut_vector(&mut self) -> &mut [f32] {
         &mut self.data
     }
 
+    /// data borrowed as immutable 
     pub fn data_as_vector(&self) -> &[f32] {
         &self.data
     }
 
+    /// point product or Hadamard Product (can be broadcasted)
     pub fn point_multiply(&self, rhs: &NdArray) -> NdArray {
         universal_ops(self, rhs, |(a, b)| *a *= b)
     }
