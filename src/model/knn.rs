@@ -20,7 +20,7 @@ pub enum KNNWeighting {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct QueryRecord<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> {
+pub struct QueryRecord<'a, T: TaskLabelType + Copy + std::cmp::PartialEq> {
     feature: &'a Vec<f32>,
     label: T,
     distance: f32,
@@ -57,30 +57,16 @@ struct KDTree<T: TaskLabelType + Copy> {
     weighting: KNNWeighting,
 }
 
-trait KNNInterface<T: TaskLabelType + Copy + std::cmp::PartialEq> {
-    /// * k: k nearest neighbours
-    /// * weighting: weighting the neibours, default is these neighbours are equal
-    /// * features: \[batch, feature\]
-    /// * labels: \[batch\]
-    /// * total_dim: total dim of the feature
-    /// * p: the parameter p of [minkowski distance](https://en.wikipedia.org/wiki/Minkowski_distance)
-    ///     * default is p = 2
-    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: Option<usize>) -> Self;
-    
+pub trait KNNInterface<T: TaskLabelType + Copy + std::cmp::PartialEq> {
     /// find the nearest k nodes around the query
     /// * return: ordering Vector<(node_sample_feature, node_label, distance)>, size = k
     fn nearest<'a>(&'a self, query: &Vec<f32>) -> Vec<QueryRecord<'a, T>>;
+
+    fn get_weighting(&self) -> KNNWeighting;
+
 }
 
-impl<T: TaskLabelType + Copy + std::cmp::PartialEq> KNNInterface<T> for KDTree<T> {
-    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: Option<usize>) -> Self {
-        assert!(features.len() > 0 && features.len() == labels.len());
-        assert!(k > 0);
-        let feature_label_zip: Vec<(Vec<f32>, T)> = features.into_iter().zip(labels.into_iter()).map(|(f,l)| (f, l)).collect();
-
-
-        Self { root:  Self::build(feature_label_zip, total_dim, 0), minkowski_distance_p: p.unwrap_or(2) as f32, k: k, weighting: weighting.unwrap_or(KNNWeighting::Uniform)}
-    }
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq + 'static> KNNInterface<T> for KDTree<T> {
 
     fn nearest<'a>(&'a self, query: &Vec<f32>) -> Vec<QueryRecord<'a, T>> {
         // the initial best records is trivial, so borrow query
@@ -95,49 +81,31 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq> KNNInterface<T> for KDTree<T
         nearest.reverse();
         nearest
     }
-}
 
-impl Model<usize> for KDTree<usize> {
-    fn predict(&self, feature: &Vec<f32>) -> usize {
-        let res = self.nearest(feature);
-        let mut predicts: HashMap<usize, f32> = HashMap::new();
-        for item in res {
-            *predicts.entry(item.label).or_insert(0.0) += match self.weighting {
-                KNNWeighting::Distance => 1.0 / f32::max(item.distance, 1e-6),
-                KNNWeighting::Uniform => 1.0,
-            }
-        }
-        predicts.iter().fold((0, f32::MAX), |s, i| {
-            if *i.1 > s.1 {
-                (*i.0, *i.1)
-            } else {
-                s
-            }
-        }).0
+    fn get_weighting(&self) -> KNNWeighting {
+        self.weighting
     }
 }
 
-impl Model<f32> for KDTree<f32> {
-    fn predict(&self, feature: &Vec<f32>) -> f32 {
-        let res = self.nearest(feature);
-        let weights = match self.weighting {
-            KNNWeighting::Distance => {
-                let mut a = NdArray::new(res.iter().map(|i| i.distance).collect::<Vec<f32>>());
-                softmax(&mut a, 0);
-                a.destroy().1
-            },
-            KNNWeighting::Uniform => {
-                vec![1.0 / res.len() as f32; res.len()]
-            }
-        };
-        res.iter().zip(weights.iter()).fold(0.0, |s, (i, w)| {
-            s + i.label * w
-        })
-    }
-}
-
-impl<T: TaskLabelType + Copy + std::cmp::PartialEq>  KDTree<T> {
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq + 'static>  KDTree<T> {
     
+    /// * k: k nearest neighbours
+    /// * weighting: weighting the neibours, default is these neighbours are equal
+    /// * features: \[batch, feature\]
+    /// * labels: \[batch\]
+    /// * total_dim: total dim of the feature
+    /// * p: the parameter p of [minkowski distance](https://en.wikipedia.org/wiki/Minkowski_distance)
+    ///     * default is p = 2
+    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, total_dim: usize, p: Option<usize>) -> Box<dyn KNNInterface<T>> {
+        assert!(features.len() > 0 && features.len() == labels.len());
+        assert!(k > 0);
+        let feature_label_zip: Vec<(Vec<f32>, T)> = features.into_iter().zip(labels.into_iter()).map(|(f,l)| (f, l)).collect();
+
+        // Box::new(Self { root: None, minkowski_distance_p: p.unwrap_or(2) as f32, k: k, weighting: weighting.unwrap_or(KNNWeighting::Uniform)})
+
+        Box::new(Self { root:  Self::build(feature_label_zip, total_dim, 0), minkowski_distance_p: p.unwrap_or(2) as f32, k: k, weighting: weighting.unwrap_or(KNNWeighting::Uniform)})
+    }
+
     /// features: [batch, (feature, label)]
     fn build(mut feature_label_zip: Vec<(Vec<f32>, T)>, total_dim: usize, depth: usize) -> Option<Box<KdNode<T>>> {
         if feature_label_zip.len() == 0 {
@@ -215,37 +183,182 @@ impl<T: TaskLabelType + Copy + std::cmp::PartialEq>  KDTree<T> {
 }
 
 
-/// KNN classifier implemented by [KDTree](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm)
-pub struct KNearestNeighbor {
-    alg: KNNAlg,
+struct BruteForceSearch<T: TaskLabelType + Copy> {
+    k: usize,
+    minkowski_distance_p: f32,
+    weighting: KNNWeighting,   
+    features: Vec<Vec<f32>>,
+    labels: Vec<T>,
+}
+
+impl<T: TaskLabelType + Copy + PartialEq> KNNInterface<T> for BruteForceSearch<T> {
+    fn nearest<'a>(&'a self, query: &Vec<f32>) -> Vec<QueryRecord<'a, T>> {
+        let mut records_heap: BinaryHeap<QueryRecord<'a, T>> = BinaryHeap::new();
+        for (feature, label) in self.features.iter().zip(self.labels.iter()) {
+            let d = minkowski_distance(query, feature, self.minkowski_distance_p);
+            if records_heap.len() == self.k {
+                let worst_record = records_heap.peek().unwrap();
+                if d < worst_record.distance {
+                    records_heap.pop();
+                    records_heap.push(
+                        QueryRecord { feature: feature, label: *label, distance: d }
+                    );
+                }
+            } else {
+                records_heap.push(
+                    QueryRecord { feature: feature, label: *label, distance: d }
+                );
+            }
+        }
+        let mut res = vec![];
+        while let Some(item) = records_heap.pop() {
+            res.push(item);
+        }
+        res.reverse();
+        res
+    }
+
+    fn get_weighting(&self) -> KNNWeighting {
+        self.weighting
+    }
+}
+
+impl<T: TaskLabelType + Copy + std::cmp::PartialEq + 'static> BruteForceSearch<T> {
+    /// * k: k nearest neighbours
+    /// * weighting: weighting the neibours, default is these neighbours are equal
+    /// * features: \[batch, feature\]
+    /// * labels: \[batch\]
+    /// * p: the parameter p of [minkowski distance](https://en.wikipedia.org/wiki/Minkowski_distance)
+    ///     * default is p = 2
+    fn new(k: usize, weighting: Option<KNNWeighting>, features: Vec<Vec<f32>>, labels: Vec<T>, p: Option<usize>) -> Box<dyn KNNInterface<T>> {
+        assert!(features.len() > 0 && features.len() == labels.len());
+        assert!(k > 0);
+        Box::new(Self { k: k, minkowski_distance_p: p.unwrap_or(2) as f32, weighting: weighting.unwrap_or(KNNWeighting::Uniform), features: features, labels: labels })
+    }
 }
 
 
-impl KNearestNeighbor {
-    pub fn new(alg: KNNAlg) -> Self {
-        Self { alg: alg }
+impl Model<usize> for dyn KNNInterface<usize> {
+    fn predict(&self, feature: &Vec<f32>) -> usize {
+        let res = self.nearest(feature);
+        let mut predicts: HashMap<usize, f32> = HashMap::new();
+        for item in res {
+            *predicts.entry(item.label).or_insert(0.0) += match self.get_weighting() {
+                KNNWeighting::Distance => 1.0 / f32::max(item.distance, 1e-6),
+                KNNWeighting::Uniform => 1.0,
+            }
+        }
+        predicts.iter().fold((0, f32::MAX), |s, i| {
+            if *i.1 > s.1 {
+                (*i.0, *i.1)
+            } else {
+                s
+            }
+        }).0
+    }
+}
+
+impl Model<f32> for dyn KNNInterface<f32> {
+    fn predict(&self, feature: &Vec<f32>) -> f32 {
+        let res = self.nearest(feature);
+        let weights = match self.get_weighting() {
+            KNNWeighting::Distance => {
+                let mut a = NdArray::new(res.iter().map(|i| i.distance).collect::<Vec<f32>>());
+                softmax(&mut a, 0);
+                a.destroy().1
+            },
+            KNNWeighting::Uniform => {
+                vec![1.0 / res.len() as f32; res.len()]
+            }
+        };
+        res.iter().zip(weights.iter()).fold(0.0, |s, (i, w)| {
+            s + i.label * w
+        })
+    }
+}
+
+
+
+/// KNN implemented by [KDTree](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) or BruteForceSearch
+pub struct KNNModel<T: TaskLabelType + Copy + PartialEq> {
+    pub alg: KNNAlg,
+    interface: Box<dyn KNNInterface<T>>,
+}
+
+
+impl<T: TaskLabelType + Copy + PartialEq + 'static> KNNModel<T> {
+    /// initialization is training of KdTree; for BruteForce, it is lazy training (i.e., no training)
+    /// * alg: algorithm of knn
+    /// * k: k nearest neighbours
+    /// * weighting: for the ensemble results
+    ///     * default is uniform
+    /// * p: parameter of minkowski distance
+    ///     * default is 2, i.e., Euclidean distance
+    pub fn new(alg: KNNAlg, k: usize, weighting: Option<KNNWeighting>, dataset: Dataset<T>, p: Option<usize>) -> Self {
+        let interface= match alg {
+            KNNAlg::BruteForce => {
+                BruteForceSearch::new(k, weighting, dataset.features, dataset.labels, p)
+            },
+            KNNAlg::KdTree => {
+                let total_dim = dataset.feature_len();
+                KDTree::new(k, weighting, dataset.features, dataset.labels, total_dim, p)
+            }
+        };
+        Self { alg: alg, interface: interface }
     }
 
-    pub fn train<T: TaskLabelType + Copy>(&mut self, dataset: Dataset<T>) {
-        // let total_dim = dataset.feature_len();
-        // let mut features = NdArray::new(dataset.features);
-        // features = features.permute(vec![1, 0]); // [dim, batch]
-        // match self.alg {
-        //     KNNAlg::KdTree => {
-                
-        //     },
-        //     _ => {},
-        // }
+    pub fn nearest(&self, query: &Vec<f32>) -> Vec<QueryRecord<T>> {
+        self.interface.nearest(query)
+    }
+}
+
+impl Model<usize> for KNNModel<usize> {
+    fn predict(&self, feature: &Vec<f32>) -> usize {
+        let res = self.interface.nearest(feature);
+        let mut predicts: HashMap<usize, f32> = HashMap::new();
+        for item in res {
+            *predicts.entry(item.label).or_insert(0.0) += match self.interface.get_weighting() {
+                KNNWeighting::Distance => 1.0 / f32::max(item.distance, 1e-6),
+                KNNWeighting::Uniform => 1.0,
+            }
+        }
+        predicts.iter().fold((0, f32::MIN), |s, i| {
+            if *i.1 > s.1 {
+                (*i.0, *i.1)
+            } else {
+                s
+            }
+        }).0
+    }
+}
+
+impl Model<f32> for KNNModel<f32> {
+    fn predict(&self, feature: &Vec<f32>) -> f32 {
+        let res = self.interface.nearest(feature);
+        let weights = match self.interface.get_weighting() {
+            KNNWeighting::Distance => {
+                let mut a = NdArray::new(res.iter().map(|i| i.distance).collect::<Vec<f32>>());
+                softmax(&mut a, 0);
+                a.destroy().1
+            },
+            KNNWeighting::Uniform => {
+                vec![1.0 / res.len() as f32; res.len()]
+            }
+        };
+        res.iter().zip(weights.iter()).fold(0.0, |s, (i, w)| {
+            s + i.label * w
+        })
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::dataset::{Dataset};
     use crate::model::Model;
-    use crate::model::knn::KNNWeighting;
+    use crate::model::knn::{KNNWeighting, BruteForceSearch};
 
-    use super::KNearestNeighbor;
-    use super::{KDTree, KNNInterface};
+    use super::{KNNModel, KNNAlg};
+    use super::{KDTree};
 
     #[test]
     fn test_kdtree() {
@@ -265,8 +378,36 @@ mod test {
     }
 
     #[test]
+    fn test_brute_force_search() {
+        let features = vec![
+            vec![2.0, 3.0],
+            vec![5.0, 4.0],
+            vec![9.0, 6.0],
+            vec![4.0, 7.0],
+            vec![8.0, 1.0],
+            vec![7.0, 2.0],
+        ];
+        let labels = vec![0, 0, 0, 1, 1, 1];
+        let tree = BruteForceSearch::new(20, Some(KNNWeighting::Distance), features, labels, Some(2));
+        let query = vec![6.0, 7.0];
+        let results =  tree.nearest(&query);
+        println!("size {} predict {}\nnearest {:?}", results.len(), tree.predict(&query), results);
+    }
+
+    #[test]
     fn test_knn() {
-        let mut v = vec![1, 2, 3];
-        println!("{:?}", v.split_off(3));
+        let features = vec![
+            vec![2.0, 3.0],
+            vec![5.0, 4.0],
+            vec![9.0, 6.0],
+            vec![4.0, 7.0],
+            vec![8.0, 1.0],
+            vec![7.0, 2.0],
+        ];
+        let labels = vec![0, 0, 0, 1, 1, 1];
+        let dataset = Dataset::new(features, labels, None);
+        let knn = KNNModel::new(KNNAlg::KdTree, 1, None, dataset, None);
+        let query = vec![7.0, 1.9];
+        println!("nearest {:?}\npredict = {}", knn.nearest(&query), knn.predict(&query));
     }
 }
