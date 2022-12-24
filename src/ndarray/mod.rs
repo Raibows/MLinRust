@@ -102,7 +102,7 @@ impl std::fmt::Display for NdArray {
                     write!(f, "{}, ", i)?;
                 }
             }
-            write!(f, "{}],", row[row.len() - 1])?;
+            write!(f, "{}]", row[row.len() - 1])?;
             Ok(())
         }
 
@@ -112,16 +112,25 @@ impl std::fmt::Display for NdArray {
                 write!(f, "{}", blank)?;
                 print_row(f, data)?;
                 if cursor > 0 {
-                    write!(f, "\n")?;
+                    write!(f, ",\n")?;
                 }
             } else {
                 write!(f, "{}[\n", blank)?;
                 let base: usize = shape.iter().skip(cursor + 1).fold(1, |s, i| s * i);
-                for i in 0..shape[cursor] - 1 {
-                    recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                if shape[cursor] > 8 {
+                    for i in 0..4 {
+                        recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                    }
+                    write!(f, "{}...{} ROWS NOT SHOWN...DIM {} TOTAL {}\n", " ".repeat(width * (cursor + 1)), shape[cursor] - 8, cursor, shape[cursor])?;
+                    for i in shape[cursor]-4..shape[cursor] {
+                        recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                    }
+                } else {
+                    for i in 0..shape[cursor] {
+                        recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+                    }
                 }
-                let i = shape[cursor] - 1;
-                recursive_print(&data[i*base..(i+1)*base], shape, cursor+1, f, width)?;
+
                 if cursor == 0 {
                     write!(f, "{}]", blank)?;
                 } else {
@@ -394,31 +403,34 @@ mod test {
     #[test]
     fn test_fmt_display() {
         let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        println!("{}", a);
+        println!("{a}");
 
         a.reshape(vec![2, 3]);
-        println!("{}", a);
+        println!("{a}");
 
         a.reshape(vec![3, 2]);
-        println!("{}", a);
+        println!("{a}");
 
         let mut a = NdArray::new((0..16).map(|i| i as f32).collect::<Vec<f32>>());
         a.reshape(vec![2, 2, 4]);
-        println!("{}", a);
+        println!("{a}");
 
         let mut a = NdArray::new((0..128).map(|i| i as f32).collect::<Vec<f32>>());
         a.reshape(vec![2, 2, 32]);
-        println!("{}", a);
+        println!("{a}");
+
+        let a = NdArray::random(vec![64, 16, 8, 1], Some(0));
+        println!("{a}");
     }
 
     #[test]
     fn test_permute() {
         let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         a.reshape(vec![2, 3]);
-        println!("{}", a);
+        println!("{a}");
         let b = a.permute(vec![1, 0]);
         println!("after permute transpose");
-        println!("{}", b);
+        println!("{b}");
         let bb = NdArray::new(
             vec![
                 vec![1.0, 4.0], 
@@ -433,7 +445,7 @@ mod test {
         let mut a = NdArray::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         a.reshape(vec![1, 2, 3]);
         let b = a.permute(vec![2, 0, 1]);
-        println!("{}", b);
+        println!("{b}");
         let mut bb = NdArray::new(
             vec![
                 vec![1.0, 4.0], 
@@ -478,6 +490,6 @@ mod test {
     fn test_repeat() {
         let mut a = NdArray::random(vec![2, 3], None);
         a.repeat(vec![4, 1]);
-        println!("{}", a);
+        println!("{a}");
     }
 }
