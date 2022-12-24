@@ -16,16 +16,17 @@ Actively seeking code reviews and welcome suggestions on fixing bugs or code ref
 
 ## Algorithms
 
-1. Decision Tree, supporting both classification and regression tasks. Info gains like ``gini`` or ``entropy`` are provided.
-2. Logistic Regression, supporting regularization (Lasso, Ridge and L-inf)
-3. Linear Regression, same as logistic regression, but for regression tasks.
-4. Naive Bayes, free to handle discrete or continuous feature values.
-5. SVM, with linear kernel using SGD and Hinge Loss to optimize.
-6. nn Module, containing ``linear(MLP)`` and some ``activation`` functions which could be freely stacked and optimized by gradient back propagation.
-6. KNN, supporting both ``KdTree`` and vanilla ``BruteForceSearch``.
+1. **Decision Tree**, supporting both classification and regression tasks. Info gains like ``gini`` or ``entropy`` are provided.
+2. **Logistic Regression**, supporting regularization (``Lasso``, ``Ridge`` and ``L-inf``)
+3. **Linear Regression**, same as logistic regression, but for regression tasks.
+4. **Naive Bayes**, free to handle discrete or continuous feature values.
+5. **SVM**, with linear kernel using SGD and Hinge Loss to optimize.
+6. **nn Module**, containing ``linear(MLP)`` and some ``activation`` functions which could be freely stacked and optimized by gradient back propagations.
+6. **KNN**, supporting both ``KdTree`` and vanilla ``BruteForceSearch``.
 
 ## Todo
 
+1. K-means clustering
 1. Boosting/bagging
 2. docs for codes and guides for users
 3. refactor codes, sincerely request for comments from senior developers
