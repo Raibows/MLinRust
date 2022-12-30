@@ -4,7 +4,10 @@ use std::{collections::{HashMap}};
 use crate::dataset::{Dataset, TaskLabelType};
 use super::Model;
 
-
+/// calculate the info gains by
+/// * Gini
+/// * Entropy
+/// * Variation
 #[derive(Debug)]
 pub enum InfoGains {
     Gini,
@@ -24,13 +27,14 @@ pub struct Node<T> {
 
 #[derive(Debug)]
 pub struct DecisionTree<T: TaskLabelType> {
-    pub root: Option<Box<Node<T>>>,
+    root: Option<Box<Node<T>>>,
     min_sample_split: usize,
     max_depth: usize,
     info_gain_type: InfoGains,
 }
 
 pub trait TaskConditionedReturn<T: TaskLabelType> {
+    /// return the ensemble results
     fn get_leaf_value(&self) -> T;
 
     fn calculate_information(&self, info_gain_type: &InfoGains) -> f32;
@@ -105,10 +109,15 @@ impl<T: TaskLabelType + Copy> Model<T> for DecisionTree<T> {
 
 
 impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
-    pub fn new(min_sample_split: usize, max_depth: usize, info_gain:InfoGains) -> Self {
+    /// define a decision tree (not built yet), f32 for regression task, usize for classification task
+    /// * min_sample_split: it will not try to split the tree if it reaches the min_sample_split
+    /// * max_depth: max depth of the tree
+    /// * info_gain: calculate the info gains by InfoGains(Gini, Entropy, Variation)
+    pub fn new(min_sample_split: usize, max_depth: usize, info_gain: InfoGains) -> Self {
         DecisionTree { root: None, min_sample_split: min_sample_split, max_depth: max_depth, info_gain_type: info_gain}
     }
 
+    /// build the tree by the train dataset
     pub fn train(&mut self, dataset: Dataset<T>) 
     where Dataset<T>: TaskConditionedReturn<T> 
     {
@@ -128,11 +137,12 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
             }
         }
 
-        let leaf_value = self.get_leaf_value(&dataset);
+        let leaf_value = dataset.get_leaf_value();
 
         Node {feature_idx: None, info_gain: None, left: None, right: None, threshold: None, value: Some(leaf_value)}
     }
 
+    /// traverse all possible feature values to find the best split (the max info gain)
     fn get_best_split(&self, dataset: &Dataset<T>) -> (f32, usize, f32, Option<Dataset<T>>, Option<Dataset<T>>)
     where Dataset<T>: TaskConditionedReturn<T>
     {
@@ -163,10 +173,7 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
         best_splits
     }
 
-    fn get_leaf_value<E: TaskConditionedReturn<T>>(&self, dataset: &E) -> T {
-        dataset.get_leaf_value()
-    }
-
+    /// split the dataset into two subsets by the given (feature_idx, feature_value)
     fn split_dataset_by(&self, dataset: &Dataset<T>, feature_values: &Vec<&f32>, threshold: f32) -> (Dataset<T>, Dataset<T>) {
         let mut left_datas = vec![];
         let mut right_datas = vec![];
@@ -181,23 +188,8 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
         (Dataset::from(left_datas), Dataset::from(right_datas))
     }
 
-    // fn judge(&self, features: &Vec<f32>, node: &Box<Node<T>>) -> T {
-    //     if node.value.is_some() {
-    //         node.value.unwrap()
-    //     } else {
-    //         if features[node.feature_idx.unwrap()] < node.threshold.unwrap() {
-    //             self.judge(features, &node.as_ref().left.as_ref().unwrap())
-    //         } else {
-    //             self.judge(features, &node.as_ref().right.as_ref().unwrap())
-    //         }
-    //     }
-    // }
-
-    // pub fn predict(&self, item: (&Vec<f32>, &T)) -> bool {
-    //     self.judge(item.0, self.root.as_ref().unwrap()) == *item.1
-    // }
-
-    pub fn print_self(&self, node: &Option<Box<Node<T>>>, depth: usize) {
+    
+    fn recursive_print(&self, node: &Option<Box<Node<T>>>, depth: usize) {
         if node.is_some() {
             let width = " ".repeat(depth * 7) + "-------";
             let t = node.as_ref().unwrap();
@@ -205,11 +197,16 @@ impl<T: TaskLabelType + Copy + std::fmt::Display> DecisionTree<T> {
                 println!("{depth} {width} VALUE: {}", t.value.unwrap());
             } else {
                 println!("{depth} {width} LEFT : F{:0>3} < {}", t.feature_idx.unwrap(), t.threshold.unwrap());
-                self.print_self(&node.as_ref().unwrap().as_ref().left, depth + 1);
+                self.recursive_print(&node.as_ref().unwrap().as_ref().left, depth + 1);
                 println!("{depth} {width} RIGHT: F{:0>3} ≥ {}", t.feature_idx.unwrap(), t.threshold.unwrap());
-                self.print_self(&node.as_ref().unwrap().as_ref().right, depth + 1);
+                self.recursive_print(&node.as_ref().unwrap().as_ref().right, depth + 1);
             }
         }
+    }
+
+    /// print the structure of the built tree
+    pub fn print_self(&self) {
+        self.recursive_print(&self.root, 0);
     }
 }
 
@@ -235,7 +232,7 @@ mod test {
         let temp_dataset = Dataset::new(x, y, None);
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
         dct.train(temp_dataset);
-        dct.print_self(&dct.root, 0);
+        dct.print_self();
     }
 
     #[test]
@@ -248,7 +245,7 @@ mod test {
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
         dct.train(train_dataset);
 
-        dct.print_self(&dct.root, 0);
+        dct.print_self();
 
         let (correct, acc) = evaluate(&test_dataset, &dct);
         println!("correct {correct} / test {}, acc = {acc}", test_dataset.len());
@@ -266,7 +263,7 @@ mod test {
         let mut dct = DecisionTree::<usize>::new(1, 3, InfoGains::Gini);
         dct.train(train_dataset);
 
-        dct.print_self(&dct.root, 0);
+        dct.print_self();
 
         let (correct, acc) = evaluate(&test_dataset, &dct);
         println!("correct {correct} / test {}, acc = {acc}", test_dataset.len());
@@ -284,7 +281,7 @@ mod test {
 
         let mut dct = DecisionTree::new(100, 3, InfoGains::Variation);
         dct.train(train_dataset);
-        dct.print_self(&dct.root, 0);
+        dct.print_self();
 
         let abs_error = evaluate_regression(&test_dataset, &dct);
         println!("mean absolute error {abs_error:.5}");

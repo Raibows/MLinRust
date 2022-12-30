@@ -25,6 +25,10 @@ pub struct NaiveBayes {
 }
 
 impl NaiveBayes {
+    /// Naive Bayes model for classification task
+    /// * class_num: # of class num of a classification dataset
+    /// * is_discrete_feature: you have to tell the model which features are discrete, which are continuous; true for discrete, false for continuous
+    /// * laplace_alpha: laplace smoothing, default is 1.0
     pub fn new(class_num: usize, is_discrete_feature: Vec<bool>, laplace_alpha: Option<f32>) -> Self {
         let class_condition_prob = is_discrete_feature.iter().map(|i| {
             if *i {
@@ -38,6 +42,7 @@ impl NaiveBayes {
         Self { is_discrete_feature: is_discrete_feature, prior_prob: vec![laplace_alpha; class_num], class_condition_prob:  vec![class_condition_prob; class_num], laplace_alpha: laplace_alpha, unknown_feature_prob: vec![vec![]; class_num]}
     }
 
+    /// gaussian distribution point estimation, only for calculating the likelihood
     fn gaussian_dist_pdf(&self, x: f32, mu: f32, sigma: f32) -> f32 {
         1.0 / f32::max(1e-6, (2.0 * std::f32::consts::PI).sqrt() * sigma) *
         std::f32::consts::E.powf(
@@ -45,6 +50,7 @@ impl NaiveBayes {
         )
     }
 
+    /// train the model
     pub fn train(&mut self, dataset: &Dataset<usize>) {
         assert!(dataset.feature_len() == self.is_discrete_feature.len());
         assert!(dataset.class_num() == self.prior_prob.len());

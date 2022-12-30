@@ -3,12 +3,15 @@ use std::io::{stdout, Write};
 use crate::{ndarray::{NdArray, utils::sum_ndarray}, dataset::{Dataset, dataloader::Dataloader}, utils::evaluate};
 use super::{utils::{Penalty, calculate_penalty_grad, calculate_penalty_value}, Model};
 
-
+/// soft constraints for SVM
+/// * Hinge Loss, max(0, 1 - z)
+/// * Exponential, exp(-z)
+/// * Log, log (1 + exp(-z))
 #[derive(Clone, Copy, Debug)]
 pub enum SVMLoss {
-    Hinge, // max(0, 1 - z)
-    Exponential, // exp(-z)
-    Logistic, // log (1 + exp(-z))
+    Hinge,
+    Exponential,
+    Logistic,
 }
 
 pub struct SupportVectorMachine { 
@@ -91,6 +94,8 @@ impl SupportVectorMachine {
         (margin, avg_loss)
     }
 
+    /// train the SVM model
+    /// * verbose: whether show the training info
     pub fn train(&mut self, dataset: Dataset<usize>, epoch: usize, loss: SVMLoss, early_stop: bool, verbose: bool) -> std::io::Result<()> {
         assert!(dataset.class_num() == 2);
         let bsz = self.bsz.unwrap_or(dataset.len());

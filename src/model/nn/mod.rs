@@ -8,16 +8,27 @@ pub mod activation;
 pub mod criterion;
 
 pub trait NNBackPropagation {
+    /// nn forward
+    /// * require_grad: if it is set to true, it will save the necessary grad graph, and it is also the reason for &mut self
     fn forward(&mut self, input: &NdArray, required_grad: bool) -> NdArray;
     
+    /// forward but without graph and it only requires immutable reference of self
     fn forward_as_borrow(&self, input: &NdArray) -> NdArray;
 
+    /// calculate the gradidents and save them to grad_w or grad_b
     fn backward(&mut self, bp_grad: NdArray) -> NdArray;
 
+    /// update the weights and bias with the grad_w and grad_b, respectively
+    /// * reduction:
+    ///     * len(batch): average over the batch
+    ///     * 1: sum the batch
+    /// * lr: learning rate
+    /// * gradient_clip_by_norm: gradient clippling by NormType, default is None
     fn step(&mut self, _reduction: usize, _lr: f32, _gradient_clip_by_norm: Option<NormType>) {
         
     }
 
+    /// mutablly borrow the raw data of the weights
     fn weight_mut_borrow(&mut self) -> &mut [f32] {
         todo!()
     }
@@ -59,7 +70,7 @@ impl NeuralNetwork {
         }
     }
 
-    /// init the weights with random number from [0, 1.0]
+    /// init the weights with random number from \[0, 1.0\]
     /// * seed: default is set to 0
     pub fn weight_init(&mut self, seed: Option<usize>) {
         let mut rng = RandGenerator::new(seed.unwrap_or(0));

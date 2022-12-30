@@ -1,6 +1,6 @@
 use std::time::{Instant};
 use std::io::{Write, stdout};
-    use mlinrust::dataset::{Dataset, DatasetName, FromPathDataset, dataloader::{Dataloader}};
+use mlinrust::dataset::{Dataset, DatasetName, FromPathDataset, dataloader::{Dataloader}};
 use mlinrust::model::nn::{NeuralNetwork, NNmodule, NNBackPropagation};
 use mlinrust::model::utils::{NormType, Penalty};
 use mlinrust::model::nn::criterion::MeanSquaredError;
@@ -33,14 +33,6 @@ fn main() -> std::io::Result<()> {
 
     const EPOCH: usize = 10;
     let mut error_records = vec![];
-
-    // let start = Instant::now();
-    // for _ in 0..20 {
-    //     let _ = evaluate_regression(&test_dataset, &model);
-    // }
-    // let test_time = Instant::now() - start;
-    // println!("20 times evaluation cost {}", test_time.as_secs_f64());
-
 
     for ep in 0..EPOCH {
         let mut losses = vec![];

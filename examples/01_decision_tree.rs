@@ -14,7 +14,7 @@ fn main() {
     let mut model = DecisionTree::<usize>::new(1, 7, InfoGains::Entropy);
     model.train(train_dataset);
     println!("model training done!");
-    model.print_self(&model.root, 0);
+    model.print_self();
 
     let (correct, acc) = evaluate(&test_dataset, &model);
     println!("evaluate results\ncorrect {correct} / total {}, acc = {acc:.5}", test_dataset.len());

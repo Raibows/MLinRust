@@ -8,6 +8,12 @@ pub struct LogisticRegression {
 }
 
 impl LogisticRegression {
+    /// logistic regression model with CrossEntropy optimized by mini-batch SGD for classification task
+    /// * feature_size: the input size
+    /// * class_num: # of classes, the total number of the classes of the dataset
+    /// * punalty: penalty the weights, default is none
+    /// * weight_init_fn: it is strongly recommended to init the weights, e.g.,
+    ///     * randomly init: |item| item.for_each(|i| *i = rng.gen_f32())
     pub fn new<F>(feature_size: usize, class_num: usize, penalty: Option<Penalty>, weight_init_fn: F) -> Self
     where F: Fn(&mut [f32])
     {   
@@ -16,13 +22,14 @@ impl LogisticRegression {
         Self { feature_size: feature_size, linear: linear, criterion: CrossEntropyLoss::new() }
     }
 
+    /// forward process
     pub fn forward(&mut self, input: &NdArray, required_grad: bool) -> NdArray {
         assert!(input.dim() == 2);
         assert!(input.shape[1] == self.feature_size);
         self.linear.forward(input, required_grad)
     }
 
-    /// return: predictions(after softmax), avg_loss
+    /// Forward, then calculate the loss, and update the weights. Finally return the average loss of this batch.
     pub fn one_step(&mut self, feature: &NdArray, label: &Vec<usize>, lr: f32, gradient_clip_by_norm: Option<NormType>) -> f32 {
         let logits = self.forward(&feature, true);
 

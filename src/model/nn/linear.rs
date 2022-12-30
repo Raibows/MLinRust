@@ -82,19 +82,17 @@ impl NNBackPropagation for Linear {
 
 impl Linear {
     /// create a matrix with shape \[n, m\] + bias \[n\]
-    /// 
-    /// insize: m
-    /// 
-    /// outsize: n
+    /// * insize: m
+    /// * outsize: n
     pub fn new(insize: usize, outsize: usize, penalty: Option<Penalty>) -> Self {
         let weight = NdArray::new(vec![outsize, insize]);
         let bias = NdArray::new(vec![outsize]);
         Self { weight: weight.clone(), bias: bias.clone(), grad_w: weight, grad_b: bias, temp_grad_w: None, temp_grad_b: None, penalty: penalty }
     }
 
+    /// save the activation values
     fn save_grad_graph(&mut self, input: &NdArray) {
         // input [bsz, hidden]
-        // no average here. should I take average of the gradient for every step? or just in the final step?
 
         self.temp_grad_w = Some(input.clone());
         self.temp_grad_b = Some(NdArray::new(vec![vec![1.0; input.shape[0]]]));

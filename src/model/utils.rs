@@ -19,12 +19,16 @@ pub fn minkowski_distance(x: &Vec<f32>, y: &Vec<f32>, p: f32) -> f32 {
     
 }
 
+/// penalty for the weights
+/// L1: also known as Lasso
+/// L2: also known as Ridge
 #[derive(Clone, Copy, Debug)]
 pub enum Penalty {
     LassoL1(f32),
     RidgeL2(f32),
 }
 
+/// NormType is used for gradient clipping
 #[derive(Debug, Clone, Copy)]
 pub enum NormType {
     L1(f32),
@@ -32,6 +36,7 @@ pub enum NormType {
     Inf(f32),
 }
 
+/// clip the gradient according to its norm 
 pub fn gradient_clip(grad: &mut NdArray, norm_type: &NormType) {
     let (total_norm, max_norm) = match norm_type {
         NormType::L1(max_norm) => {
@@ -50,6 +55,7 @@ pub fn gradient_clip(grad: &mut NdArray, norm_type: &NormType) {
     }
 }
 
+/// calculate the punalty loss
 pub fn calculate_penalty_value(var: &NdArray, penalty: Penalty) -> f32 {
     // return penalty value
     match penalty {
@@ -62,6 +68,7 @@ pub fn calculate_penalty_value(var: &NdArray, penalty: Penalty) -> f32 {
     }
 }
 
+/// calculate the gradients of penalty loss
 pub fn calculate_penalty_grad(var: &NdArray, penalty: Penalty) -> NdArray {
     // return the grad caused by penalty
     let g = match penalty {

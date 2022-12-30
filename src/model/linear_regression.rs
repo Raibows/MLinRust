@@ -8,6 +8,12 @@ pub struct LinearRegression {
 }
 
 impl LinearRegression {
+    /// linear regression model with MeanSquaredError optimized by mini-batch SGD
+    /// * feature_size: the input size, usually the feature size
+    /// * output_size: the output is a continuous value f32
+    /// * punalty: penalty the weights, default is none
+    /// * weight_init_fn: it is strongly recommended to init the weights, e.g.,
+    ///     * randomly init: |item| item.for_each(|i| *i = rng.gen_f32())
     pub fn new<F>(feature_size: usize, penalty: Option<Penalty>, weight_init_fn: F) -> Self
     where F: Fn(&mut [f32])
     {   
@@ -16,13 +22,14 @@ impl LinearRegression {
         Self { feature_size: feature_size, linear: linear, criterion: MeanSquaredError::new() }
     }
 
+    /// forward process
     pub fn forward(&mut self, input: &NdArray, required_grad: bool) -> NdArray {
         assert!(input.dim() == 2);
         assert!(input.shape[1] == self.feature_size);
         self.linear.forward(input, required_grad)
     }
 
-    /// return: predictions(after softmax), avg_loss
+    /// Forward, then calculate the loss, and update the weights. Finally return the average loss of this batch.
     pub fn one_step(&mut self, feature: &NdArray, label: &Vec<f32>, lr: f32, gradient_clip_by_norm: Option<NormType>) -> f32 {
         let logits = self.forward(&feature, true);
 

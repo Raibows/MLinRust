@@ -8,10 +8,14 @@ pub mod svm;
 pub mod nn;
 pub mod knn;
 
+/// An interface for implementing prediction function of each model
 pub trait Model<T: TaskLabelType> {
-    // todo implement generics for feature to accept batch or ndarray etc.
+    /// predict one sample
+    /// * return: f32 for regression task, usize for classification task
     fn predict(&self, feature: &Vec<f32>) -> T;
 
+    /// predict a batch
+    /// * return: vector of T(f32 or usize)
     fn predict_with_batch(&self, features: &NdArray) -> Vec<T> {
         assert!(features.dim() == 2);
         let mut res = vec![];
