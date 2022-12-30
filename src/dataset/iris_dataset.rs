@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-
+/// recipe of loading [Iris Flower](https://www.kaggle.com/datasets/arshid/iris-flower-dataset) dataset, a classification task
 pub fn process_iris_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Option<HashMap<usize, String>>) {
     let lines: Vec<&str> = data.split("\n").collect();
     let mut lines = lines.iter();

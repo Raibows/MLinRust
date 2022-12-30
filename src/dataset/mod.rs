@@ -8,7 +8,10 @@ mod car_price_dataset;
 pub mod utils;
 pub mod dataloader;
 
-
+/// pre-defined receipes of loading a dataset
+/// * IrisDataset: [Iris Flower](https://www.kaggle.com/datasets/arshid/iris-flower-dataset) dataset
+/// * MobilePhonePricePredictDataset: [Mobile Price Classification](https://www.kaggle.com/datasets/iabhishekofficial/mobile-price-classification) dataset
+/// * CarPriceRegressionDataset: [Alibaba/tianchi Car Price](https://tianchi.aliyun.com/dataset/108588) dataset
 #[derive(Debug)]
 pub enum DatasetName {
     IrisDataset,
@@ -16,6 +19,11 @@ pub enum DatasetName {
     CarPriceRegressionDataset,
 }
 
+/// dataset structure
+/// * T: the label type; usually usize is for classification task; f32 is for regression task
+/// * features: input features, X
+/// * labels: ground truth, Y
+/// * label_map: map the discrete label to the label name if it has (no need for <f32> regression task)
 #[derive(Clone)]
 pub struct Dataset<T: TaskLabelType> {
     pub features: Vec<Vec<f32>>,
@@ -134,15 +142,22 @@ impl<T: TaskLabelType + Copy> From<Vec<(&Vec<f32>, &T)>> for Dataset<T> {
 }
 
 impl<T:TaskLabelType + Copy> Dataset<T> {
+    /// create a dataset with (X, Y)
+    /// * T: the label type; usually usize is for classification task; f32 is for regression task
+    /// * features: input features, X
+    /// * labels: ground truth, Y
+    /// * label_map: map the discrete label to the label name if it has (no need for <f32> regression task)
     pub fn new(features: Vec<Vec<f32>>, labels: Vec<T>, label_map: Option<HashMap<usize, String>>) -> Self {
         assert_eq!(features.len(), labels.len());
         Self { features: features, labels: labels, label_map: label_map}
     }
 
+    /// return the num of the samples of the dataset
     pub fn len(&self) -> usize {
         self.features.len()
     }
 
+    /// return the feature size of the sample
     pub fn feature_len(&self) -> usize {
         if let Some(item) = self.features.get(0) {
             item.len()
@@ -151,11 +166,14 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         }
     }
 
+    /// return the num of labels if it is a classification dataset
     pub fn class_num(&self) -> usize {
         assert!(self.label_map.is_some(), "dataset is not for classification!");
         self.label_map.as_ref().unwrap().len()
     }
 
+    /// return the feature[idx] collections, e.g., each sample has 3 features (x, y, z),
+    /// then return (x1, x2, ..., xn) if feature_idx = 0
     pub fn get_feature_by_idx(&self, feature_idx: usize) -> Vec<&f32> {
         assert!(feature_idx < self.feature_len());
         self.features.iter().map(|item|{
@@ -163,6 +181,7 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         }).collect()
     }
 
+    /// return the unique value set of a specific feature X_i
     pub fn get_unique_feature_values(&self, feature_idx: usize) -> Vec<&f32> {
         let mut features = self.get_feature_by_idx(feature_idx);
         features.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -175,11 +194,13 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         temp
     }
 
+    /// return a feature-label pair (x, y) by the given index
     pub fn get(&self, idx: usize) -> (&Vec<f32>, &T) {
         assert!(idx < self.len());
         (&self.features[idx], &self.labels[idx])
     }
 
+    /// randomly shuffle the sample index order
     pub fn shuffle(&mut self, seed: usize) {
         let mut rng = RandGenerator::new(seed);
         let mut idxs: Vec<usize> = (0..self.len()).collect();
@@ -193,7 +214,8 @@ impl<T:TaskLabelType + Copy> Dataset<T> {
         self.features = features;
         self.labels = labels;
     }
-    /// shuffle the dataset first then split it into several subsets with tge given ratio
+
+    /// shuffle the dataset first then split it into several subsets with the given ratio
     /// 
     /// * ratio: the ratios of the subsets, it will be normalized first
     /// 

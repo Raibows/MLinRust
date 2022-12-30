@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use super::utils::{ImputeType, impute_missing_values};
 
+/// receipe of loading [Alibaba/tianchi Car Price](https://tianchi.aliyun.com/dataset/108588) dataset, a regression task.
+/// 
+/// it may have missing values, so you have to pass the default imputing method
 pub fn process_tianchi_car_price_regression_dataset(data: String, fill_missing_value_by: ImputeType) -> (Vec<Vec<f32>>, Vec<f32>, Option<HashMap<usize, String>>) {
     let lines: Vec<&str> = data.split("\n").collect();
     let mut lines = lines.into_iter();
@@ -10,7 +13,8 @@ pub fn process_tianchi_car_price_regression_dataset(data: String, fill_missing_v
     let mut features = Vec::with_capacity(lines.len());
     let mut labels = Vec::with_capacity(lines.len());
 
-    for line in lines {
+    for mut line in lines {
+        line = line.strip_suffix(" ").unwrap_or(line);
         if line.len() == 0 {
             continue;
         }
@@ -53,10 +57,10 @@ mod test {
 
     #[test]
     fn test_process() {
-        let data = Dataset::<f32>::read_data_from_file(".data/TianchiCarPriceRegression/train_5w.csv").unwrap();
+        let data = Dataset::<f32>::read_data_from_file(".data/TianchiCarPriceRegression/new_train_5w.csv").unwrap();
         let (feature, _label, label_map) = process_tianchi_car_price_regression_dataset(data, ImputeType::Mean);
         assert_eq!(feature.len(), 50_000);
-        assert_eq!(feature[0].len(), 39);
+        assert_eq!(feature[0].len(), 30);
         assert_eq!(label_map, None);
     }
 }

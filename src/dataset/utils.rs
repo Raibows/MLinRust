@@ -3,7 +3,10 @@ use crate::ndarray::utils::{std, mean, min, max};
 
 use super::{Dataset, TaskLabelType};
 
-
+/// Impute the missing value with
+/// * Mean value
+/// * Zero
+/// * given Value
 pub enum ImputeType {
     Mean,
     Zero,

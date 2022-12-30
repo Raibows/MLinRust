@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-
+/// recipe of loading [Mobile Price Classification](https://www.kaggle.com/datasets/iabhishekofficial/mobile-price-classification) dataset 
 pub fn process_mobile_phone_price_dataset(data: String) -> (Vec<Vec<f32>>, Vec<usize>, Option<HashMap<usize, String>>) {
     // x = 20 features
     // y = usize price range
