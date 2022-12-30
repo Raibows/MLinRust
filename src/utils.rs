@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::dataset::dataloader::{Dataloader, BatchIterator};
 use crate::dataset::{Dataset, TaskLabelType};
 use crate::model::Model;
@@ -146,6 +148,39 @@ impl RandGenerator {
             if self.gen_f32() > 1.0 / (i+1) as f32 {
                 arr.swap(i, self.gen_range(0, i));
             } // otherwise keep
+        }
+    }
+
+    /// randomly choose samples from the given array
+    /// * arr: the pool of candidates
+    /// * num: the number of you want; **note that the num should <= arr.len() if w/o replacement**
+    /// * replacement: whether allow repeated samples in the choice
+    ///     * true: allowed
+    ///     * false: not allowed
+    /// * return: Vector of randomly choosen samples
+    pub fn choice<T: Clone>(&mut self, arr: &Vec<T>, num: usize, replacement: bool) -> Vec<T> {
+        if replacement {
+            (0..num).map(|_| arr[self.gen_range(0, arr.len())].clone()).collect()
+        } else {
+            assert!(num <= arr.len());
+            let mut set = HashSet::new();
+            let mut samples = vec![];
+
+            // optimize
+            if arr.len() >= 500 && num as f32 / arr.len() as f32 > 0.85 {
+                let mut temp = arr.clone();
+                self.shuffle(&mut temp);
+                temp.into_iter().take(num).for_each(|item| samples.push(item));
+            } else {
+                while samples.len() < num {
+                    let i = self.gen_range(0, arr.len());
+                    if ! set.contains(&i) {
+                        set.insert(i);
+                        samples.push(arr[i].clone());
+                    }
+                }
+            }
+            samples
         }
     }
 }
