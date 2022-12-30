@@ -23,6 +23,7 @@ Learn the Rust programming language through implementing classic machine learnin
 5. **SVM**, with linear kernel using SGD and Hinge Loss to optimize.
 6. **nn Module**, containing ``linear(MLP)`` and some ``activation`` functions which could be freely stacked and optimized by gradient back propagations.
 6. **KNN**, supporting both ``KdTree`` and vanilla ``BruteForceSearch``.
+6. **K-Means**, clustering data with an unsupervised learning approach
 
 ## Start
 
@@ -86,10 +87,15 @@ Let's use KNN algorithm to solve a classification task. More examples can be fou
 
 ## Todo
 
-1. K-means clustering
 1. model weights serialization for saving and loading
-1. Boosting/bagging
+2. Boosting/bagging
+1. matrix multiplication with multi threads
 3. refactor codes, sincerely request for comments from senior developers
+
+## Reference
+
+1. [scikit-learn](https://scikit-learn.org/stable/)
+2. The book, [机器学习西瓜书](https://cs.nju.edu.cn/zhouzh/zhouzh.files/publication/MLbook2016.htm) by [Prof. Zhihua Zhou](https://cs.nju.edu.cn/zhouzh/index.htm)
 
 ## Thanks
 

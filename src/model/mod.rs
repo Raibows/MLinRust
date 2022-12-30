@@ -7,6 +7,7 @@ pub mod naive_bayes;
 pub mod svm;
 pub mod nn;
 pub mod knn;
+pub mod kmeans;
 
 /// An interface for implementing prediction function of each model
 pub trait Model<T: TaskLabelType> {
