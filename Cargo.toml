@@ -2,6 +2,15 @@
 name = "mlinrust"
 version = "0.1.0"
 edition = "2021"
+license = "GNU GPLv3 AND no commercial use"
+authors = ["Raibows@Github <raibows@hotmail.com>"]
+homepage = "https://github.com/Raibows/MLinRust"
+repository = "https://github.com/Raibows/MLinRust"
+documentation = "https://github.com/Raibows/MLinRust"
+readme = "README.md"
+description = "A machine learning library in Rust from scratch."
+categories = ["science"]
+keywords = ["machine_learning", "bootstrap", "tutorial", "data", "numpy"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
